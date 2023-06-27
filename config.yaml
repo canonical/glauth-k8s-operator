@@ -46,6 +46,6 @@ options:
     default: "5555"
   base_dn:
     description: |
-      Coma seperated list of base dns names
+      Coma separated list of base dns names
     type: string
     default: "glauth,com"

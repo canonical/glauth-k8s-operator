@@ -25,21 +25,9 @@ from charms.traefik_k8s.v1.ingress import (
     IngressPerAppRevokedEvent,
 )
 from jinja2 import Template
-from ops.charm import (
-    CharmBase,
-    ConfigChangedEvent,
-    HookEvent,
-    PebbleReadyEvent,
-    RelationEvent,
-)
+from ops.charm import CharmBase, ConfigChangedEvent, HookEvent, PebbleReadyEvent, RelationEvent
 from ops.main import main
-from ops.model import (
-    ActiveStatus,
-    BlockedStatus,
-    MaintenanceStatus,
-    ModelError,
-    WaitingStatus,
-)
+from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, ModelError, WaitingStatus
 from ops.pebble import ChangeError, Layer, LayerDict
 
 logger = logging.getLogger(__name__)
@@ -68,9 +56,7 @@ class GlauthK8SCharm(CharmBase):
 
         self._ingress_relation_name = "ingress"
 
-        self.service_patcher = KubernetesServicePatch(
-            self, [(self.app.name, self._ldap_port)]
-        )
+        self.service_patcher = KubernetesServicePatch(self, [(self.app.name, self._ldap_port)])
         self.ingress = IngressPerAppRequirer(
             self,
             relation_name=self._ingress_relation_name,
@@ -166,14 +152,14 @@ class GlauthK8SCharm(CharmBase):
         return self.config["http_port"]
 
     @property
-    def _baseDN(self) -> str:
+    def _basedn(self) -> str:
         # baseDN example: "dc=glauth,dc=com"
         dn_input = self.config["base_dn"]
         list_dns = dn_input.split(",")
         list_dc = [f"dc={dn}" for dn in list_dns]
         return ",".join(list_dc)
 
-# finish later
+    # finish later
     def _render_conf_file(self) -> str:
         """Render GLAuth configuration file."""
         with open("templates/glauth.yaml.j2", "r") as file:
@@ -191,7 +177,7 @@ class GlauthK8SCharm(CharmBase):
             block_failed_binds_for=self.config["block_failed_binds_for"],
             prune_source_tables_every=self.config["prune_source_table_every"],
             prune_sources_older_than=self.config["prune_sources_older_than"],
-            baseDN=self._baseDN,
+            baseDN=self._basedn,
         )
         return rendered
 
@@ -298,9 +284,7 @@ class GlauthK8SCharm(CharmBase):
     def _update_ldap_endpoint_relation_data(self, event: RelationEvent) -> None:
         logger.info("Sending ldap endpoints info")
 
-        endpoint = (
-            f"http://{self.app.name}.{self.model.name}.svc.cluster.local:{self._ldap_port}"
-        )
+        endpoint = f"http://{self.app.name}.{self.model.name}.svc.cluster.local:{self._ldap_port}"
 
         self.ldap_provider.send_ldap_endpoint(endpoint)
 
