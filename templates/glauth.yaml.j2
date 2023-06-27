@@ -1,0 +1,30 @@
+debug = true
+
+[ldap]
+  enabled = true
+  listen = "0.0.0.0:{{ ldap_port }}"
+
+[ldaps]
+  enabled = false
+
+[backend]
+  datastore = "plugin"
+  plugin = "{{ postgres_plugin }}"
+  pluginhandler = "NewPostgresHandler"
+  baseDN = "{{ baseDN }}"
+  database = "postgres://{{ db_info.get('username') }}:{{ db_info.get('password') }}@{{ db_info.get('endpoints') }}/{{ db_info.get('database_name') }}"
+
+[behaviors]
+  IgnoreCapabilities = {{ ignore_capabilities  }}
+  LimitFailedBinds = {{ limited_failed_binds }}
+  NumberOfFailedBinds = {{ number_of_failed_binds }}
+  PeriodOfFailedBinds = {{  period_of_failed_binds }}
+  BlockFailedBindsFor = {{ block_failed_binds_for }}
+  PruneSourceTableEvery = {{ prune_source_tables_every }}
+  PruneSourcesOlderThan = {{ prune_sources_older_than }}
+
+[api]
+  enabled = true
+  internals = true
+  tls = false
+  listen = "0.0.0.0:{{ http_port }}"

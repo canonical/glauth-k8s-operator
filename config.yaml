@@ -1,14 +1,51 @@
-# This file defines charm config options, and populates the Configure tab on Charmhub.
-# If your charm does not require configuration options, delete this file entirely.
-#
-# See https://juju.is/docs/config for guidance.
-
 options:
-  # An example config option to customise the log level of the workload
-  log-level:
+  ignore_capabilities:
     description: |
-      Configures the log level of gunicorn. 
-
-      Acceptable values are: "info", "debug", "warning", "error" and "critical"
-    default: "info"
+      Ignore all capabilities restrictions, for instance allowing every user to perform a search
+    type: boolean
+    default: False
+  limit_failed_binds:
+    description: |
+      Enable a "fail2ban" type backoff mechanism temporarily banning repeated failed login attempts
+    type: boolean
+    default: True
+  number_of_failed_binds:
+    description: |
+      The number of allowed failed login attempts before a ban is imposed
     type: string
+    default: "3"
+  period_of_failed_binds:
+    description: |
+      Duration (in seconds) of the window for failed login attempts
+    type: string
+    default: "10"
+  block_failed_binds_for:
+    description: |
+      Ban duration (in seconds)
+    type: string
+    default: "60"
+  prune_source_table_every:
+    description: |
+      Duration until learnt IP addresses are deleted
+    type: string
+    default: "600"
+  prune_sources_older_than:
+    description: |
+      Clean IP addresses not seen in a given duration (in seconds)
+    type: string
+    default: "600"
+  ldap_port:
+    description: |
+      Port on which LDAP service is accessible
+    type: string
+    default: "3893"
+  http_port:
+    description: |
+      Port on which HTTP services are accessible
+    type: string
+    default: "5555"
+  base_dn:
+    description: |
+      Coma seperated list of base dns names
+    type: string
+    default: "glauth,com"
