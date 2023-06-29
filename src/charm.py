@@ -8,14 +8,14 @@
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from charms.data_platform_libs.v0.data_interfaces import (
     DatabaseCreatedEvent,
     DatabaseEndpointsChangedEvent,
     DatabaseRequires,
 )
-from charms.glauth_k8s.v0.glauth_endpoint import LDAPEndpointProvider
+from charms.glauth_k8s.v0.ldap_public import LDAPProvides, LDAPRequestedEvent
 from charms.loki_k8s.v0.loki_push_api import LogProxyConsumer, PromtailDigestError
 from charms.observability_libs.v0.kubernetes_service_patch import KubernetesServicePatch
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
@@ -25,12 +25,18 @@ from charms.traefik_k8s.v1.ingress import (
     IngressPerAppRevokedEvent,
 )
 from jinja2 import Template
-from ops.charm import CharmBase, ConfigChangedEvent, HookEvent, PebbleReadyEvent, RelationEvent
+from ops.charm import CharmBase, ConfigChangedEvent, HookEvent, PebbleReadyEvent
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, ModelError, WaitingStatus
-from ops.pebble import ChangeError, Layer, LayerDict
+from ops.pebble import ChangeError, Layer
+
+if TYPE_CHECKING:
+    from ops.pebble import LayerDict
+
+from users import UserManager
 
 logger = logging.getLogger(__name__)
+PEER_RELATION_NAME = "glauth-peers"
 
 
 class GlauthK8SCharm(CharmBase):
@@ -71,7 +77,8 @@ class GlauthK8SCharm(CharmBase):
             extra_user_roles="SUPERUSER",
         )
 
-        self.ldap_provider = LDAPEndpointProvider(self)
+        self.ldap_provider = LDAPProvides(self)
+        self._ldap_users = UserManager(self, PEER_RELATION_NAME)
 
         self.metrics_endpoint = MetricsEndpointProvider(
             self,
@@ -104,9 +111,7 @@ class GlauthK8SCharm(CharmBase):
         self.framework.observe(self.ingress.on.ready, self._on_ingress_ready)
         self.framework.observe(self.ingress.on.revoked, self._on_ingress_revoked)
 
-        self.framework.observe(
-            self.ldap_provider.on.ready, self._update_ldap_endpoint_relation_data
-        )
+        self.framework.observe(self.ldap_provider.on.ldap_requested, self._provide_ldap_auth)
 
         self.framework.observe(
             self.loki_consumer.on.promtail_digest_error,
@@ -162,7 +167,7 @@ class GlauthK8SCharm(CharmBase):
     # finish later
     def _render_conf_file(self) -> str:
         """Render GLAuth configuration file."""
-        with open("templates/glauth.yaml.j2", "r") as file:
+        with open("templates/glauth.cfg.j2", "r") as file:
             template = Template(file.read())
 
         rendered = template.render(
@@ -178,6 +183,7 @@ class GlauthK8SCharm(CharmBase):
             prune_source_tables_every=self.config["prune_source_table_every"],
             prune_sources_older_than=self.config["prune_sources_older_than"],
             baseDN=self._basedn,
+            user_list=self._ldap_users.users,
         )
         return rendered
 
@@ -245,7 +251,7 @@ class GlauthK8SCharm(CharmBase):
         if not self._container.can_connect():
             event.defer()
             logger.info("Cannot connect to GLAuth container. Deferring event.")
-            self.unit.status = WaitingStatus("Waiting to connect to GLAuth container")
+            self.unit.status = WaitingStatus("Waiting to connect to glauth container")
             return
 
         self.unit.status = MaintenanceStatus(
@@ -256,7 +262,7 @@ class GlauthK8SCharm(CharmBase):
             self._container.get_service(self._container_name)
         except (ModelError, RuntimeError):
             event.defer()
-            self.unit.status = WaitingStatus("Waiting for GLAuth service")
+            self.unit.status = WaitingStatus("Waiting for glauth service")
             logger.info("GLAuth service is absent. Deferring database created event.")
             return
 
@@ -281,12 +287,25 @@ class GlauthK8SCharm(CharmBase):
             logger.info("GLAuth no longer has ingress")
         self._handle_status_update_config(event)
 
-    def _update_ldap_endpoint_relation_data(self, event: RelationEvent) -> None:
-        logger.info("Sending ldap endpoints info")
+    def _provide_ldap_auth(self, event: LDAPRequestedEvent) -> None:
+        logger.info("Sending ldap accessibility info")
 
+        relationid = event.relation.id
         endpoint = f"http://{self.app.name}.{self.model.name}.svc.cluster.local:{self._ldap_port}"
+        distinguished_name = event.distinguished_name
+        (username, password) = self._ldap_users.generate_user(
+            "ldap", relationid, distinguished_name
+        )
+        if (not username) or (not password):
+            """User Generation Has Failed"""
+            logger.info("Cannot generate GLAuth User.")
+            self.unit.status = BlockedStatus("Failed to generate GLAuth User")
+            return
 
-        self.ldap_provider.send_ldap_endpoint(endpoint)
+        self.ldap_provider.set_ldap_access(
+            relationid, distinguished_name, endpoint, username, password
+        )
+        self._handle_status_update_config(event)
 
     def _promtail_error(self, event: PromtailDigestError) -> None:
         logger.error(event.message)

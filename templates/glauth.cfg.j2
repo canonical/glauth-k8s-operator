@@ -28,3 +28,19 @@ debug = true
   internals = true
   tls = false
   listen = "0.0.0.0:{{ http_port }}"
+
+[[groups]]
+  name = "users"
+  gidnumber = 5501
+
+{% for user in user_list %}
+[[users]]
+  name = "{{ user._name }}"
+  uidnumber = {{ user._uidNumber }}
+  primarygroup = 5501
+  passsha256 = "{{ user._passsha256 }}"
+    [[users.capabilities]]
+    action = "search"
+    object = "*"
+
+{% endfor %}
