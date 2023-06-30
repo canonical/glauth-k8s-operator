@@ -1,4 +1,5 @@
 debug = true
+watchconfig = true
 
 [ldap]
   enabled = true
@@ -32,7 +33,6 @@ debug = true
 [[groups]]
   name = "users"
   gidnumber = 5501
-
 {% for user in user_list %}
 [[users]]
   name = "{{ user._name }}"
@@ -42,5 +42,4 @@ debug = true
     [[users.capabilities]]
     action = "search"
     object = "*"
-
 {% endfor %}

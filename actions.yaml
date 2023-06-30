@@ -1,0 +1,9 @@
+search-dn:
+  description: Perform a DN search on the GLauth instance
+  params:
+    base-dn:
+      description: The Base DN for search
+      type: string
+  required: ["base-dn"]
+list-all-dns:
+  description: List all available DNs

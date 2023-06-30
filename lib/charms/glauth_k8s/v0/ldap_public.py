@@ -118,7 +118,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 0
+LIBPATCH = 1
 
 PYDEPS = ["ops>=2.0.0"]
 
@@ -181,6 +181,16 @@ class LDAPRequiresEvent(RelationEvent):
 
         """
         return self.relation.data[self.relation.app].get("endpoints")
+
+    @property
+    def username(self) -> Optional[str]:
+        """Returns the username for authentication."""
+        return self.relation.data[self.relation.app].get("username")
+
+    @property
+    def password(self) -> Optional[str]:
+        """Returns the password for authentication."""
+        return self.relation.data[self.relation.app].get("password")
 
 
 class LDAPAvailable(AuthenticationEvent, LDAPRequiresEvent):

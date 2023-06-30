@@ -118,6 +118,9 @@ class GlauthK8SCharm(CharmBase):
             self._promtail_error,
         )
 
+        # self.framework.observe(self.on.search_dn_action, self._on_search_dn_action)
+        # self.framework.observe(self.on.list_all_dns_action, self._on_list_all_dns_action)
+
     @property
     def _glauth_service_is_running(self) -> bool:
         if not self._container.can_connect():
@@ -175,8 +178,8 @@ class GlauthK8SCharm(CharmBase):
             ldap_port=self._ldap_port,
             http_port=self._http_port,
             postgres_plugin=self._db_plugin,
-            ignore_capabilities=self.config["ignore_capabilities"],
-            limited_failed_binds=self.config["limit_failed_binds"],
+            ignore_capabilities=str(self.config["ignore_capabilities"]).lower(),
+            limited_failed_binds=str(self.config["limit_failed_binds"]).lower(),
             number_of_failed_binds=self.config["number_of_failed_binds"],
             period_of_failed_binds=self.config["period_of_failed_binds"],
             block_failed_binds_for=self.config["block_failed_binds_for"],
@@ -302,10 +305,12 @@ class GlauthK8SCharm(CharmBase):
             self.unit.status = BlockedStatus("Failed to generate GLAuth User")
             return
 
+        """Pushing new user into configuration file. GLAuth uses hot reloading for users"""
+        self._container.push(self._config_file_path, self._render_conf_file(), make_dirs=True)
+
         self.ldap_provider.set_ldap_access(
             relationid, distinguished_name, endpoint, username, password
         )
-        self._handle_status_update_config(event)
 
     def _promtail_error(self, event: PromtailDigestError) -> None:
         logger.error(event.message)

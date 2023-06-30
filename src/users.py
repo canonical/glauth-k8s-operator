@@ -37,7 +37,7 @@ class UserEncoder(json.JSONEncoder):
         """Interface for json.dump."""
         if isinstance(obj, User):
             return {
-                "name": obj.name,
+                "name": obj._name,
                 "passsha256": obj._passsha256,
                 "uidnumber": obj._uidNumber,
                 "object": obj._object,
@@ -62,7 +62,7 @@ class UserManager:
         if not ok:
             return False
         self._userList.append(new_user)
-        return
+        return True
 
     def _store_user(self, user: User) -> bool:
         peer_relation = self._charm.model.relations[self._peer_relation_name]
@@ -137,5 +137,5 @@ class UserManager:
         for node in nodes:
             if ("cn=" in node) or ("CN=" in node):
                 snode = node.strip()
-                start_index = snode.finc("=") + 1
+                start_index = snode.find("=") + 1
                 return snode[start_index:]

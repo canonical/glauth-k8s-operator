@@ -4,7 +4,6 @@
 import json
 
 import pytest
-import yaml
 from ops.model import ActiveStatus, BlockedStatus, WaitingStatus
 from ops.testing import Harness
 
@@ -88,6 +87,20 @@ def setup_ldap_relation(harness: Harness) -> int:
     return relation_id
 
 
+def setup_multi_ldap_relations(harness: Harness, quantity: int) -> None:
+    def add_test_ldap_user(harness: Harness, user_number: int) -> None:
+        relation_id = harness.add_relation("ldap", f"testapp{user_number}")
+        harness.add_relation_unit(relation_id, f"testapp{user_number}/0")
+        harness.update_relation_data(
+            relation_id,
+            f"testapp{user_number}",
+            {"distinguished_name": f"cn=testapp{user_number}-user,ou=users,dc=glauth,dc=com"},
+        )
+
+    for i in range(quantity):
+        add_test_ldap_user(harness, i)
+
+
 def trigger_database_changed(harness: Harness) -> None:
     db_relation_id = harness.add_relation("database", "postgresql-k8s")
     harness.add_relation_unit(db_relation_id, "postgresql-k8s/0")
@@ -102,6 +115,11 @@ def trigger_database_changed(harness: Harness) -> None:
 
 
 def setup_peer_relation(harness: Harness) -> None:
+    relation_id = harness.add_relation("glauth-peers", "glauth-k8s")
+    harness.add_relation_unit(relation_id, "glauth-k8s/1")
+
+
+def setup_peer_relation_with_user(harness: Harness) -> None:
     relation_id = harness.add_relation("glauth-peers", "glauth-k8s")
     harness.add_relation_unit(relation_id, "glauth-k8s/1")
     data = {
@@ -183,19 +201,20 @@ def test_on_pebble_ready_service_started_when_database_is_created(harness: Harne
     assert harness.model.unit.status == ActiveStatus()
 
 
-# def test_on_pebble_ready_has_correct_config_when_database_is_created(harness: Harness) -> None:
-#     setup_postgres_relation(harness)
+def test_on_pebble_ready_has_correct_config_when_database_is_created(harness: Harness) -> None:
+    setup_postgres_relation(harness)
 
-#     container = harness.model.unit.get_container(CONTAINER_NAME)
-#     harness.charm.on.glauth_pebble_ready.emit(container)
+    container = harness.model.unit.get_container(CONTAINER_NAME)
+    harness.charm.on.glauth_pebble_ready.emit(container)
 
-#     expected_config = ""
+    expected_config = ""
 
-#     with open("test_glauth.cfg", "r") as stream:
-#         expected_config = stream.readlines()
-#     config = harness.charm._render_conf_file()
+    with open("tests/unit/test_configs/test_glauth_without_user.cfg", "r") as stream:
+        expected_config = "".join(stream.readlines())
+    config = harness.charm._render_conf_file()
 
-#     assert config == expected_config
+    assert config == expected_config
+    assert harness.model.unit.status == ActiveStatus()
 
 
 def test_on_pebble_ready_when_missing_database_relation(harness: Harness) -> None:
@@ -223,6 +242,50 @@ def test_on_database_created_cannot_connect_container(harness: Harness) -> None:
 
     assert isinstance(harness.charm.unit.status, WaitingStatus)
     assert "Waiting to connect to glauth container" in harness.charm.unit.status.message
+
+
+def test_ldap_relation_without_peer_relation(harness: Harness) -> None:
+    setup_postgres_relation(harness)
+    setup_ldap_relation(harness)
+
+    assert isinstance(harness.model.unit.status, BlockedStatus)
+    assert "Failed to generate GLAuth User" in harness.charm.unit.status.message
+
+
+def test_on_pebble_ready_has_correct_config_with_ldap_relation(harness: Harness) -> None:
+    setup_postgres_relation(harness)
+    setup_peer_relation(harness)
+    setup_ldap_relation(harness)
+
+    container = harness.model.unit.get_container(CONTAINER_NAME)
+    harness.charm.on.glauth_pebble_ready.emit(container)
+
+    expected_config = ""
+
+    with open("tests/unit/test_configs/test_glauth_with_one_user.cfg", "r") as stream:
+        expected_config = "".join(stream.readlines())
+    config = harness.charm._render_conf_file()
+
+    assert config == expected_config
+    assert harness.model.unit.status == ActiveStatus()
+
+
+def test_on_pebble_ready_has_correct_config_with_multiple_ldap_relation(harness: Harness) -> None:
+    setup_postgres_relation(harness)
+    setup_peer_relation(harness)
+    setup_multi_ldap_relations(harness, 5)
+
+    container = harness.model.unit.get_container(CONTAINER_NAME)
+    harness.charm.on.glauth_pebble_ready.emit(container)
+
+    expected_config = ""
+
+    with open("tests/unit/test_configs/test_glauth_with_multiple_users.cfg", "r") as stream:
+        expected_config = "".join(stream.readlines())
+    config = harness.charm._render_conf_file()
+
+    assert config == expected_config
+    assert harness.model.unit.status == ActiveStatus()
 
 
 def test_on_pebble_ready_with_loki(harness: Harness) -> None:
