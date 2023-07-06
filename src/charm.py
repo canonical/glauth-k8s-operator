@@ -15,7 +15,6 @@ from charms.data_platform_libs.v0.data_interfaces import (
     DatabaseEndpointsChangedEvent,
     DatabaseRequires,
 )
-from charms.glauth_k8s.v0.ldap_public import LDAPProvides, LDAPRequestedEvent
 from charms.loki_k8s.v0.loki_push_api import LogProxyConsumer, PromtailDigestError
 from charms.observability_libs.v0.kubernetes_service_patch import KubernetesServicePatch
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
@@ -30,13 +29,12 @@ from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, ModelError, WaitingStatus
 from ops.pebble import ChangeError, Layer
 
+from utils import normalise_url
+
 if TYPE_CHECKING:
     from ops.pebble import LayerDict
 
-from users import UserManager
-
 logger = logging.getLogger(__name__)
-PEER_RELATION_NAME = "glauth-peers"
 
 
 class GlauthK8SCharm(CharmBase):
@@ -62,11 +60,13 @@ class GlauthK8SCharm(CharmBase):
 
         self._ingress_relation_name = "ingress"
 
-        self.service_patcher = KubernetesServicePatch(self, [(self.app.name, self._ldap_port)])
+        self.service_patcher = KubernetesServicePatch(
+            self, [(self.app.name, int(self._ldap_port))]
+        )
         self.ingress = IngressPerAppRequirer(
             self,
             relation_name=self._ingress_relation_name,
-            port=self._http_port,
+            port=int(self._http_port),
             strip_prefix=True,
         )
 
@@ -76,9 +76,6 @@ class GlauthK8SCharm(CharmBase):
             database_name=self._db_name,
             extra_user_roles="SUPERUSER",
         )
-
-        self.ldap_provider = LDAPProvides(self)
-        self._ldap_users = UserManager(self, PEER_RELATION_NAME)
 
         self.metrics_endpoint = MetricsEndpointProvider(
             self,
@@ -93,6 +90,7 @@ class GlauthK8SCharm(CharmBase):
                     ],
                 }
             ],
+            external_url=self._metrics_external_url,
         )
 
         self.loki_consumer = LogProxyConsumer(
@@ -111,15 +109,14 @@ class GlauthK8SCharm(CharmBase):
         self.framework.observe(self.ingress.on.ready, self._on_ingress_ready)
         self.framework.observe(self.ingress.on.revoked, self._on_ingress_revoked)
 
-        self.framework.observe(self.ldap_provider.on.ldap_requested, self._provide_ldap_auth)
-
         self.framework.observe(
             self.loki_consumer.on.promtail_digest_error,
             self._promtail_error,
         )
 
-        # self.framework.observe(self.on.search_dn_action, self._on_search_dn_action)
-        # self.framework.observe(self.on.list_all_dns_action, self._on_list_all_dns_action)
+    @property
+    def _metrics_external_url(self) -> str:
+        return normalise_url(self.ingress.url) if self.ingress.is_ready() else ""
 
     @property
     def _glauth_service_is_running(self) -> bool:
@@ -186,7 +183,6 @@ class GlauthK8SCharm(CharmBase):
             prune_source_tables_every=self.config["prune_source_table_every"],
             prune_sources_older_than=self.config["prune_sources_older_than"],
             baseDN=self._basedn,
-            user_list=self._ldap_users.users,
         )
         return rendered
 
@@ -283,34 +279,10 @@ class GlauthK8SCharm(CharmBase):
     def _on_ingress_ready(self, event: IngressPerAppReadyEvent) -> None:
         if self.unit.is_leader():
             logger.info("The GLAuth ingress URL: %s", event.url)
-        self._handle_status_update_config(event)
 
     def _on_ingress_revoked(self, event: IngressPerAppRevokedEvent) -> None:
         if self.unit.is_leader():
             logger.info("GLAuth no longer has ingress")
-        self._handle_status_update_config(event)
-
-    def _provide_ldap_auth(self, event: LDAPRequestedEvent) -> None:
-        logger.info("Sending ldap accessibility info")
-
-        relationid = event.relation.id
-        endpoint = f"http://{self.app.name}.{self.model.name}.svc.cluster.local:{self._ldap_port}"
-        distinguished_name = event.distinguished_name
-        (username, password) = self._ldap_users.generate_user(
-            "ldap", relationid, distinguished_name
-        )
-        if (not username) or (not password):
-            """User Generation Has Failed"""
-            logger.info("Cannot generate GLAuth User.")
-            self.unit.status = BlockedStatus("Failed to generate GLAuth User")
-            return
-
-        """Pushing new user into configuration file. GLAuth uses hot reloading for users"""
-        self._container.push(self._config_file_path, self._render_conf_file(), make_dirs=True)
-
-        self.ldap_provider.set_ldap_access(
-            relationid, distinguished_name, endpoint, username, password
-        )
 
     def _promtail_error(self, event: PromtailDigestError) -> None:
         logger.error(event.message)

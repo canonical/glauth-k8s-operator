@@ -23,14 +23,7 @@ requires:
     interface: ingress
   logging:
     interface: loki_push_api
-peers:
-  glauth-peers:
-    interface: glauth-peers
 provides:
-  ldap:
-    interface: ldap_public
-    description: |
-      Provides API endpoints to a related application
   metrics-endpoint:
     interface: prometheus_scrape
     description: |
