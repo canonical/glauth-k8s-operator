@@ -23,7 +23,7 @@ This charm requires a relation with [postgresql-k8s-operator](https://github.com
 
 ### Ingress
 
-The GLAuth Kubernetes Operator offers integration with the [traefik-k8s-operator](https://github.com/canonical/traefik-k8s-operator). The ingress is provided to the configurable HTTP API interface. Prometheus scraping is available throught the HTTP API. 
+The GLAuth Kubernetes Operator offers integration with the [traefik-k8s-operator](https://github.com/canonical/traefik-k8s-operator). The ingress is provided to the configurable HTTP API interface. Prometheus scraping is available through the HTTP API. 
 
 If you have a traefik deployed and configured in the same model as glauth-k8s, to provide ingress to theAPI run:
 ```console
