@@ -63,7 +63,7 @@ class GlauthK8SCharm(CharmBase):
         self._ingress_relation_name = "ingress"
 
         self.service_patcher = KubernetesServicePatch(
-            self, [(self.app.name, int(self._ldap_port))]
+            self, [("ldap", int(self._ldap_port)), ("http", self._http_port)]
         )
         self.ingress = IngressPerAppRequirer(
             self,
