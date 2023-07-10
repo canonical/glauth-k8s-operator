@@ -2,7 +2,7 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""Utility functions for the Kratos charm."""
+"""Utility functions for the glauth-k8s charm."""
 
 from urllib.parse import urlparse, urlunparse
 

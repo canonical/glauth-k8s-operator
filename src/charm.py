@@ -38,17 +38,19 @@ logger = logging.getLogger(__name__)
 
 
 class GlauthK8SCharm(CharmBase):
-    """Charmed GLAuth."""
+    """Charmed GLAuth Operator for Kubernetes."""
 
     def __init__(self, *args: Any) -> None:
         super().__init__(*args)
         self._container_name = "glauth"
+        self._service_name = "glauth"
         self._container = self.unit.get_container(self._container_name)
         self._config_dir_path = Path("/etc/config")
         self._config_file_path = self._config_dir_path / "glauth.cfg"
 
         self._db_name = f"{self.model.name}_{self.app.name}"
         self._db_relation_name = "database"
+        self._db_extra_user_roles = "SUPERUSER"
         self._db_plugin = "postgres.so"
 
         self._prometheus_scrape_relation_name = "metrics-endpoint"
@@ -74,7 +76,7 @@ class GlauthK8SCharm(CharmBase):
             self,
             relation_name=self._db_relation_name,
             database_name=self._db_name,
-            extra_user_roles="SUPERUSER",
+            extra_user_roles=self._db_extra_user_roles,
         )
 
         self.metrics_endpoint = MetricsEndpointProvider(
@@ -119,23 +121,12 @@ class GlauthK8SCharm(CharmBase):
         return normalise_url(self.ingress.url) if self.ingress.is_ready() else ""
 
     @property
-    def _glauth_service_is_running(self) -> bool:
-        if not self._container.can_connect():
-            return False
-
-        try:
-            service = self._container.get_service(self._container_name)
-        except (ModelError, RuntimeError):
-            return False
-        return service.is_running()
-
-    @property
     def _pebble_layer(self) -> Layer:
         pebble_layer: LayerDict = {
             "summary": "GLAuth Application layer",
             "description": "pebble layer for GLAuth service",
             "services": {
-                self._container_name: {
+                self._service_name: {
                     "override": "replace",
                     "summary": "GLAuth Operator layer",
                     "startup": "disabled",
@@ -150,11 +141,11 @@ class GlauthK8SCharm(CharmBase):
 
     @property
     def _ldap_port(self) -> str:
-        return self.config["ldap_port"]
+        return "3893"
 
     @property
     def _http_port(self) -> str:
-        return self.config["http_port"]
+        return "5555"
 
     @property
     def _basedn(self) -> str:
@@ -230,12 +221,12 @@ class GlauthK8SCharm(CharmBase):
 
     def _on_pebble_ready(self, event: PebbleReadyEvent) -> None:
         """Event Handler for pebble ready event."""
-        # Necessary directory for log forwarding
         if not self._container.can_connect():
             event.defer()
             self.unit.status = WaitingStatus("Waiting to connect to glauth container")
             return
         if not self._container.isdir(str(self._log_dir)):
+            # Create directory for log forwarding.
             self._container.make_dir(path=str(self._log_dir), make_parents=True)
             logger.info(f"Created directory {self._log_dir}")
 

@@ -34,16 +34,6 @@ options:
       Clean IP addresses not seen in a given duration (in seconds)
     type: string
     default: "600"
-  ldap_port:
-    description: |
-      Port on which LDAP service is accessible
-    type: string
-    default: "3893"
-  http_port:
-    description: |
-      Port on which HTTP services are accessible
-    type: string
-    default: "5555"
   base_dn:
     description: |
       Coma separated list of base dns names
