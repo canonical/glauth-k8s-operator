@@ -36,6 +36,6 @@ options:
     default: "600"
   base_dn:
     description: |
-      Coma separated list of base dns names
+      Coma separated list of RDNs in the format of "dc=example1,dc=example2"
     type: string
-    default: "glauth,com"
+    default: "dc=glauth,dc=com"

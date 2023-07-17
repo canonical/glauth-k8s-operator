@@ -31,7 +31,7 @@ def setup_postgres_relation(harness: Harness) -> None:
 def setup_ingress_relation(harness: Harness) -> int:
     relation_id = harness.add_relation("ingress", "traefik")
     harness.add_relation_unit(relation_id, "traefik/0")
-    url = f"http://ingress:80/{harness.model.name}-glauth"
+    url = f"https://ingress:80/{harness.model.name}-glauth"
     harness.update_relation_data(
         relation_id,
         "traefik",
@@ -213,4 +213,4 @@ def test_external_url_with_ingress_ready(harness: Harness) -> None:
     harness.charm.on.glauth_pebble_ready.emit(container)
 
     external_url = harness.charm._metrics_external_url
-    assert external_url == "https://ingress/glauth-model-glauth"
+    assert external_url == "https://ingress:80/glauth-model-glauth"

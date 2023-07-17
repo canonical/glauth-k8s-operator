@@ -26,15 +26,15 @@ from charms.traefik_k8s.v1.ingress import (
 from jinja2 import Template
 from ops.charm import CharmBase, ConfigChangedEvent, HookEvent, PebbleReadyEvent
 from ops.main import main
-from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, ModelError, WaitingStatus
+from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 from ops.pebble import ChangeError, Layer
-
-from utils import normalise_url
 
 if TYPE_CHECKING:
     from ops.pebble import LayerDict
 
 logger = logging.getLogger(__name__)
+LDAP_PORT = 3893
+HTTP_PORT = 5555
 
 
 class GlauthK8SCharm(CharmBase):
@@ -63,12 +63,12 @@ class GlauthK8SCharm(CharmBase):
         self._ingress_relation_name = "ingress"
 
         self.service_patcher = KubernetesServicePatch(
-            self, [("ldap", int(self._ldap_port)), ("http", self._http_port)]
+            self, [("ldap", LDAP_PORT), ("http", HTTP_PORT)]
         )
         self.ingress = IngressPerAppRequirer(
             self,
             relation_name=self._ingress_relation_name,
-            port=int(self._http_port),
+            port=HTTP_PORT,
             strip_prefix=True,
         )
 
@@ -87,7 +87,7 @@ class GlauthK8SCharm(CharmBase):
                     "metrics_path": "/metrics",
                     "static_configs": [
                         {
-                            "targets": [f"*:{self._http_port}"],
+                            "targets": [f"*:{HTTP_PORT}"],
                         }
                     ],
                 }
@@ -118,7 +118,7 @@ class GlauthK8SCharm(CharmBase):
 
     @property
     def _metrics_external_url(self) -> str:
-        return normalise_url(self.ingress.url) if self.ingress.is_ready() else ""
+        return self.ingress.url if self.ingress.is_ready() else ""
 
     @property
     def _pebble_layer(self) -> Layer:
@@ -140,20 +140,20 @@ class GlauthK8SCharm(CharmBase):
         return Layer(pebble_layer)
 
     @property
-    def _ldap_port(self) -> str:
-        return "3893"
-
-    @property
-    def _http_port(self) -> str:
-        return "5555"
-
-    @property
     def _basedn(self) -> str:
-        # baseDN example: "dc=glauth,dc=com"
+        """This property returns the normalized user configuration for base DN."""
+
+        def helper(rdn: str) -> str:
+            # This helper function normalizes the rdns
+            pair = rdn.split("=")
+            return "=".join([pair[0].strip().lower(), pair[1].strip()])
+
         dn_input = self.config["base_dn"]
-        list_dns = dn_input.split(",")
-        list_dc = [f"dc={dn}" for dn in list_dns]
-        return ",".join(list_dc)
+        rdns = dn_input.split(",")
+        rdn_list = []
+        for rdn in rdns:
+            rdn_list.append(helper(rdn))
+        return ",".join(rdn_list)
 
     # finish later
     def _render_conf_file(self) -> str:
@@ -163,8 +163,8 @@ class GlauthK8SCharm(CharmBase):
 
         rendered = template.render(
             db_info=self._get_database_relation_info(),
-            ldap_port=self._ldap_port,
-            http_port=self._http_port,
+            ldap_port=LDAP_PORT,
+            http_port=HTTP_PORT,
             postgres_plugin=self._db_plugin,
             ignore_capabilities=str(self.config["ignore_capabilities"]).lower(),
             limited_failed_binds=str(self.config["limit_failed_binds"]).lower(),
@@ -238,30 +238,7 @@ class GlauthK8SCharm(CharmBase):
 
     def _on_database_created(self, event: DatabaseCreatedEvent) -> None:
         """Event Handler for database created event."""
-        if not self._container.can_connect():
-            event.defer()
-            logger.info("Cannot connect to GLAuth container. Deferring event.")
-            self.unit.status = WaitingStatus("Waiting to connect to glauth container")
-            return
-
-        self.unit.status = MaintenanceStatus(
-            "Configuring container and resources for database connection"
-        )
-
-        try:
-            self._container.get_service(self._container_name)
-        except (ModelError, RuntimeError):
-            event.defer()
-            self.unit.status = WaitingStatus("Waiting for glauth service")
-            logger.info("GLAuth service is absent. Deferring database created event.")
-            return
-
-        logger.info("Updating GLAuth config and restarting service")
-        self._container.add_layer(self._container_name, self._pebble_layer, combine=True)
-        self._container.push(self._config_file_path, self._render_conf_file(), make_dirs=True)
-
-        self._container.start(self._container_name)
-        self.unit.status = ActiveStatus()
+        self._handle_status_update_config(event)
 
     def _on_database_changed(self, event: DatabaseEndpointsChangedEvent) -> None:
         """Event Handler for database changed event."""
