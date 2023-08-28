@@ -1,5 +1,5 @@
-black==23.3.0
-flake8==6.0.0
+black==23.7.0
+flake8==6.1.0
 flake8-docstrings
 flake8-copyright
 flake8-builtins
