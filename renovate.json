@@ -1,0 +1,46 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base",
+    ":disableDependencyDashboard",
+    ":automergeDigest",
+    ":automergePatch",
+    ":automergeMinor",
+    ":rebaseStalePrs",
+    ":semanticCommits",
+    ":semanticCommitScope(deps)",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "automergeType": "pr",
+  "rebaseWhen": "behind-base-branch",
+  "baseBranches": ["IAM-414"],
+  "packageRules": [
+    {
+      "groupName": "github actions",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["major", "minor", "patch", "pin", "digest"],
+      "automerge": true,
+      "schedule": ["at any time"]
+    },
+    {
+      "groupName": "Pip",
+      "matchManagers": ["pip_requirements"],
+      "matchUpdateTypes": ["major", "minor", "patch", "pin", "digest"],
+      "schedule": ["at any time"]
+    },
+    {
+      "groupName": "testing deps",
+      "matchFiles": ["tox.ini"],
+      "matchUpdateTypes": ["major", "minor", "patch", "pin", "digest"],
+      "automerge": true,
+      "schedule": ["on monday"]
+    },
+    {
+      "groupName": "renovate packages",
+      "matchSourceUrlPrefixes": ["https://github.com/renovatebot/"],
+      "matchUpdateTypes": ["major", "minor", "patch", "pin", "digest"],
+      "automerge": true,
+      "schedule": ["at any time"]
+    }
+  ]
+}
