@@ -13,7 +13,6 @@
   ],
   "automergeType": "pr",
   "rebaseWhen": "behind-base-branch",
-  "baseBranches": ["IAM-414"],
   "packageRules": [
     {
       "groupName": "github actions",
@@ -23,10 +22,22 @@
       "schedule": ["at any time"]
     },
     {
-      "groupName": "Pip",
+      "groupName": "operator pip deps",
+      "matchManagers": ["pip_requirements"],
+      "fileMatch": ["requirements\\.txt$"],
+      "matchUpdateTypes": ["major", "minor", "patch", "pin", "digest"],
+      "automerge": false,
+      "schedule": ["at any time"],
+      "prPriority": 5
+    },
+    },
+    {
+      "groupName": "pip deps",
       "matchManagers": ["pip_requirements"],
       "matchUpdateTypes": ["major", "minor", "patch", "pin", "digest"],
-      "schedule": ["at any time"]
+      "automerge": true,
+      "schedule": ["at any time"],
+      "prPriority": 4
     },
     {
       "groupName": "testing deps",
