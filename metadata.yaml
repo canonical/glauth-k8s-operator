@@ -24,6 +24,10 @@ requires:
   logging:
     interface: loki_push_api
 provides:
+  ldap:
+    interface: ldap_public
+    description: |
+      Provides API endpoints to a related application
   metrics-endpoint:
     interface: prometheus_scrape
     description: |

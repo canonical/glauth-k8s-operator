@@ -40,6 +40,13 @@ def mocked_glauth_service(harness: Harness, mocked_container: MagicMock) -> Gene
 
 
 @pytest.fixture()
+def mocked_fqdn(mocker: MockerFixture) -> MagicMock:
+    mocked_fqdn = mocker.patch("socket.getfqdn")
+    mocked_fqdn.return_value = "kratos"
+    return mocked_fqdn
+
+
+@pytest.fixture()
 def mocked_container(harness: Harness, mocker: MockerFixture) -> Container:
     container = harness.model.unit.get_container("glauth")
     setattr(container, "restart", mocker.MagicMock())
@@ -74,10 +81,3 @@ def mocked_log_proxy_consumer_setup_promtail(mocker: MockerFixture) -> MagicMock
         "charms.loki_k8s.v0.loki_push_api.LogProxyConsumer._setup_promtail", return_value=None
     )
     return mocked_setup_promtail
-
-
-@pytest.fixture()
-def mocked_fqdn(mocker: MockerFixture) -> MagicMock:
-    mocked_fqdn = mocker.patch("socket.getfqdn")
-    mocked_fqdn.return_value = "glauth-k8s"
-    return mocked_fqdn
