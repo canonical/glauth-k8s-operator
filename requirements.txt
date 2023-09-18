@@ -1,1 +1,6 @@
+cosl
 ops >= 2.2.0
+lightkube
+lightkube-models
+Jinja2
+tenacity~=8.2.0

@@ -1,26 +1,52 @@
-<!--
-Avoid using this README file for information that is maintained or published elsewhere, e.g.:
+# GLAuth Kubernetes Charmed Operator
 
-* metadata.yaml > published on Charmhub
-* documentation > published on (or linked to from) Charmhub
-* detailed contribution guide > documentation or CONTRIBUTING.md
+![Python](https://img.shields.io/python/required-version-toml?label=Python&tomlFilePath=https://raw.githubusercontent.com/canonical/glauth-k8s-operator/main/pyproject.toml)
+[![Juju](https://img.shields.io/badge/Juju%20-3.0+-%23E95420)](https://github.com/juju/juju)
+![Ubuntu](https://img.shields.io/badge/Ubuntu-22.04-E95420?label=Ubuntu&logo=ubuntu&logoColor=white)
+[![License](https://img.shields.io/github/license/canonical/glauth-k8s-operator?label=License)](https://github.com/canonical/glauth-k8s-operator/blob/main/LICENSE)
 
-Use links instead.
--->
+This repository holds the Juju Kubernetes charmed operator
+for [GLAuth](https://github.com/glauth/glauth), an open-sourced LDAP server.
 
-# glauth-k8s
+## Usage
 
-Charmhub package name: operator-template
-More information: https://charmhub.io/glauth-k8s
+The GLAuth charmed operator can be deployed using the following command:
 
-Describe your charm in one or two sentences.
+```shell
+$ juju deploy glauth-k8s --channel edge --trust
+```
 
-## Other resources
+The GLAuth charmed operator uses
+the [Charmed PostgreSQL K8s Operator](https://github.com/canonical/postgresql-k8s-operator)
+as the backend:
 
-<!-- If your charm is documented somewhere else other than Charmhub, provide a link separately. -->
+```shell
+$ juju deploy postgresql-k8s --channel stable --trust
 
-- [Read more](https://example.com)
+$ juju integrate glauth-k8s postgresql-k8s
+```
 
-- [Contributing](CONTRIBUTING.md) <!-- or link to other contribution documentation -->
+## Integrations
 
-- See the [Juju SDK documentation](https://juju.is/docs/sdk) for more information about developing and improving charms.
+TBD.
+
+## Configurations
+
+TBD.
+
+## Actions
+
+TBD.
+
+## Contributing
+
+Please refer to the [Contributing](CONTRIBUTING.md) for developer guidance.
+Please see the [Juju SDK documentation](https://juju.is/docs/sdk) for more
+information about developing and improving charms.
+
+## Licence
+
+The GLAuth Kubernetes Charmed Operator is free software, distributed under the
+Apache Software License, version 2.0.
+See [LICENSE](https://github.com/canonical/glauth-k8s-operator/blob/main/LICENSE)
+for more information.

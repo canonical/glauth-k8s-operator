@@ -1,0 +1,37 @@
+debug = false
+structuredlog = true
+
+[ldap]
+  enabled = true
+  listen = "0.0.0.0:{{ ldap_port }}"
+
+[ldaps]
+  enabled = false
+
+[backend]
+  datastore = "plugin"
+  plugin = "/bin/postgres.so"
+  pluginhandler = "NewPostgresHandler"
+  baseDN = "{{ base_dn }}"
+  database = "postgres://{{ db_info.get('username') }}:{{ db_info.get('password') }}@{{ db_info.get('endpoints') }}/{{ db_info.get('database_name') }}?sslmode=disable"
+
+[behaviors]
+  # Ignore all capabilities restrictions, for instance allowing every user to perform a search
+  IgnoreCapabilities = false
+  # Enable a "fail2ban" type backoff mechanism temporarily banning repeated failed login attempts
+  LimitFailedBinds = true
+  # How many failed login attempts are allowed before a ban is imposed
+  NumberOfFailedBinds = 3
+  # How long (in seconds) is the window for failed login attempts
+  PeriodOfFailedBinds = 10
+  # How long (in seconds) is the ban duration
+  BlockFailedBindsFor = 60
+  # Clean learnt IP addresses every N seconds
+  PruneSourceTableEvery = 600
+  # Clean learnt IP addresses not seen in N seconds
+  PruneSourcesOlderThan = 600
+
+#################
+# Enable and configure the optional REST API here.
+[api]
+  enabled = false

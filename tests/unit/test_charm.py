@@ -1,68 +1,121 @@
-# Copyright 2023 identity-team
+# Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
-#
-# Learn more about testing at: https://juju.is/docs/sdk/testing
 
-import unittest
+from ops.model import ActiveStatus, BlockedStatus, WaitingStatus
+from ops.testing import Harness
+from pytest_mock import MockerFixture
 
-import ops
-import ops.testing
-from charm import GlauthK8SCharm
+from constants import WORKLOAD_CONTAINER
 
 
-class TestCharm(unittest.TestCase):
-    def setUp(self):
-        self.harness = ops.testing.Harness(GlauthK8SCharm)
-        self.addCleanup(self.harness.cleanup)
-        self.harness.begin()
+class TestInstallEvent:
+    def test_on_install_non_leader_unit(
+        self, harness: Harness, mocker: MockerFixture
+    ) -> None:
+        mocked = mocker.patch("charm.ConfigMapResource.create")
 
-    def test_httpbin_pebble_ready(self):
-        # Expected plan after Pebble ready with default config
-        expected_plan = {
-            "services": {
-                "httpbin": {
-                    "override": "replace",
-                    "summary": "httpbin",
-                    "command": "gunicorn -b 0.0.0.0:80 httpbin:app -k gevent",
-                    "startup": "enabled",
-                    "environment": {"GUNICORN_CMD_ARGS": "--log-level info"},
-                }
-            },
-        }
-        # Simulate the container coming up and emission of pebble-ready event
-        self.harness.container_pebble_ready("httpbin")
-        # Get the plan now we've run PebbleReady
-        updated_plan = self.harness.get_container_pebble_plan("httpbin").to_dict()
-        # Check we've got the plan we expected
-        self.assertEqual(expected_plan, updated_plan)
-        # Check the service was started
-        service = self.harness.model.unit.get_container("httpbin").get_service("httpbin")
-        self.assertTrue(service.is_running())
-        # Ensure we set an ActiveStatus with no message
-        self.assertEqual(self.harness.model.unit.status, ops.ActiveStatus())
+        harness.set_leader(False)
+        harness.charm.on.install.emit()
 
-    def test_config_changed_valid_can_connect(self):
-        # Ensure the simulated Pebble API is reachable
-        self.harness.set_can_connect("httpbin", True)
-        # Trigger a config-changed event with an updated value
-        self.harness.update_config({"log-level": "debug"})
-        # Get the plan now we've run PebbleReady
-        updated_plan = self.harness.get_container_pebble_plan("httpbin").to_dict()
-        updated_env = updated_plan["services"]["httpbin"]["environment"]
-        # Check the config change was effective
-        self.assertEqual(updated_env, {"GUNICORN_CMD_ARGS": "--log-level debug"})
-        self.assertEqual(self.harness.model.unit.status, ops.ActiveStatus())
+        mocked.assert_not_called()
 
-    def test_config_changed_valid_cannot_connect(self):
-        # Trigger a config-changed event with an updated value
-        self.harness.update_config({"log-level": "debug"})
-        # Check the charm is in WaitingStatus
-        self.assertIsInstance(self.harness.model.unit.status, ops.WaitingStatus)
+    def test_on_install(self, harness: Harness, mocker: MockerFixture) -> None:
+        mocked = mocker.patch("charm.ConfigMapResource.create")
+        harness.charm.on.install.emit()
 
-    def test_config_changed_invalid(self):
-        # Ensure the simulated Pebble API is reachable
-        self.harness.set_can_connect("httpbin", True)
-        # Trigger a config-changed event with an updated value
-        self.harness.update_config({"log-level": "foobar"})
-        # Check the charm is in BlockedStatus
-        self.assertIsInstance(self.harness.model.unit.status, ops.BlockedStatus)
+        mocked.assert_called_once()
+
+
+class TestRemoveEvent:
+    def test_on_remove_non_leader_unit(
+        self, harness: Harness, mocker: MockerFixture
+    ) -> None:
+        mocked = mocker.patch("charm.ConfigMapResource.delete")
+
+        harness.set_leader(False)
+        harness.charm.on.remove.emit()
+
+        mocked.assert_not_called()
+
+    def test_on_remove(self, harness: Harness, mocker: MockerFixture) -> None:
+        mocked = mocker.patch("charm.ConfigMapResource.delete")
+        harness.charm.on.remove.emit()
+
+        mocked.assert_called_once()
+
+
+class TestPebbleReadyEvent:
+    def test_when_container_not_connected(self, harness: Harness) -> None:
+        harness.set_can_connect(WORKLOAD_CONTAINER, False)
+        container = harness.model.unit.get_container(WORKLOAD_CONTAINER)
+        harness.charm.on.glauth_pebble_ready.emit(container)
+
+        assert isinstance(harness.charm.unit.status, WaitingStatus)
+
+    def test_when_missing_database_relation(self, harness: Harness) -> None:
+        container = harness.model.unit.get_container(WORKLOAD_CONTAINER)
+        harness.charm.on.glauth_pebble_ready.emit(container)
+
+        assert isinstance(harness.model.unit.status, BlockedStatus)
+
+    def test_when_database_not_created(
+        self, harness: Harness, database_relation: int
+    ) -> None:
+        container = harness.model.unit.get_container(WORKLOAD_CONTAINER)
+
+        harness.charm.on.glauth_pebble_ready.emit(container)
+
+        assert isinstance(harness.model.unit.status, WaitingStatus)
+
+    def test_pebble_ready_event(
+        self, harness: Harness, database_relation: int, database_resource
+    ) -> None:
+        container = harness.model.unit.get_container(WORKLOAD_CONTAINER)
+
+        harness.charm.on.glauth_pebble_ready.emit(container)
+
+        service = container.get_service(WORKLOAD_CONTAINER)
+        assert service.is_running()
+        assert isinstance(harness.model.unit.status, ActiveStatus)
+
+
+class TestDatabaseCreatedEvent:
+    def test_database_created_event(
+        self, harness: Harness, database_relation: int, database_resource
+    ) -> None:
+        container = harness.model.unit.get_container(WORKLOAD_CONTAINER)
+
+        service = container.get_service(WORKLOAD_CONTAINER)
+        assert service.is_running()
+        assert isinstance(harness.model.unit.status, ActiveStatus)
+
+
+class TestConfigChangedEvent:
+    def test_when_container_not_connected(self, harness: Harness) -> None:
+        harness.set_can_connect(WORKLOAD_CONTAINER, False)
+        harness.charm.on.config_changed.emit()
+
+        assert isinstance(harness.model.unit.status, WaitingStatus)
+
+    def test_when_missing_database_relation(self, harness: Harness) -> None:
+        harness.charm.on.config_changed.emit()
+
+        assert isinstance(harness.model.unit.status, BlockedStatus)
+
+    def test_when_database_not_created(
+        self, harness: Harness, database_relation: int
+    ) -> None:
+        harness.charm.on.config_changed.emit()
+
+        assert isinstance(harness.model.unit.status, WaitingStatus)
+
+    def test_on_config_changed_event(
+        self, harness: Harness, database_relation: int, database_resource
+    ) -> None:
+        container = harness.model.unit.get_container(WORKLOAD_CONTAINER)
+
+        harness.charm.on.config_changed.emit()
+
+        service = container.get_service(WORKLOAD_CONTAINER)
+        assert service.is_running()
+        assert isinstance(harness.model.unit.status, ActiveStatus)
