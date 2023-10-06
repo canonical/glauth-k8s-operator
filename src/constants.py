@@ -3,10 +3,10 @@
 
 from pathlib import PurePath
 
-DATABASE_RELATION_NAME = "pg-database"
-LOKI_API_PUSH_RELATION_NAME = "logging"
-PROMETHEUS_SCRAPE_RELATION_NAME = "metrics-endpoint"
-GRAFANA_DASHBOARD_RELATION_NAME = "grafana-dashboard"
+DATABASE_INTEGRATION_NAME = "pg-database"
+LOKI_API_PUSH_INTEGRATION_NAME = "logging"
+PROMETHEUS_SCRAPE_INTEGRATION_NAME = "metrics-endpoint"
+GRAFANA_DASHBOARD_INTEGRATION_NAME = "grafana-dashboard"
 
 GLAUTH_CONFIG_DIR = PurePath("/etc/config")
 GLAUTH_CONFIG_FILE = GLAUTH_CONFIG_DIR / "glauth.cfg"
@@ -17,3 +17,4 @@ LOG_DIR = PurePath("/var/log")
 LOG_FILE = LOG_DIR / "glauth.log"
 
 WORKLOAD_CONTAINER = "glauth"
+WORKLOAD_SERVICE = "glauth"

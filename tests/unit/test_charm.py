@@ -1,17 +1,17 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-from ops.model import ActiveStatus, BlockedStatus, WaitingStatus
+import pytest
+from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 from ops.testing import Harness
 from pytest_mock import MockerFixture
 
-from constants import WORKLOAD_CONTAINER
+from constants import WORKLOAD_CONTAINER, WORKLOAD_SERVICE
+from kubernetes_resource import KubernetesResourceError
 
 
 class TestInstallEvent:
-    def test_on_install_non_leader_unit(
-        self, harness: Harness, mocker: MockerFixture
-    ) -> None:
+    def test_on_install_non_leader_unit(self, harness: Harness, mocker: MockerFixture) -> None:
         mocked = mocker.patch("charm.ConfigMapResource.create")
 
         harness.set_leader(False)
@@ -25,11 +25,18 @@ class TestInstallEvent:
 
         mocked.assert_called_once()
 
+    def test_configmap_creation_failed(self, harness: Harness, mocker: MockerFixture) -> None:
+        mocked = mocker.patch("charm.ConfigMapResource.create")
+        mocked.side_effect = KubernetesResourceError("Some reason.")
+
+        with pytest.raises(KubernetesResourceError):
+            harness.charm.on.install.emit()
+
+        assert isinstance(harness.model.unit.status, MaintenanceStatus)
+
 
 class TestRemoveEvent:
-    def test_on_remove_non_leader_unit(
-        self, harness: Harness, mocker: MockerFixture
-    ) -> None:
+    def test_on_remove_non_leader_unit(self, harness: Harness, mocker: MockerFixture) -> None:
         mocked = mocker.patch("charm.ConfigMapResource.delete")
 
         harness.set_leader(False)
@@ -50,7 +57,7 @@ class TestPebbleReadyEvent:
         container = harness.model.unit.get_container(WORKLOAD_CONTAINER)
         harness.charm.on.glauth_pebble_ready.emit(container)
 
-        assert isinstance(harness.charm.unit.status, WaitingStatus)
+        assert isinstance(harness.model.unit.status, WaitingStatus)
 
     def test_when_missing_database_relation(self, harness: Harness) -> None:
         container = harness.model.unit.get_container(WORKLOAD_CONTAINER)
@@ -58,9 +65,7 @@ class TestPebbleReadyEvent:
 
         assert isinstance(harness.model.unit.status, BlockedStatus)
 
-    def test_when_database_not_created(
-        self, harness: Harness, database_relation: int
-    ) -> None:
+    def test_when_database_not_created(self, harness: Harness, database_relation: int) -> None:
         container = harness.model.unit.get_container(WORKLOAD_CONTAINER)
 
         harness.charm.on.glauth_pebble_ready.emit(container)
@@ -74,7 +79,7 @@ class TestPebbleReadyEvent:
 
         harness.charm.on.glauth_pebble_ready.emit(container)
 
-        service = container.get_service(WORKLOAD_CONTAINER)
+        service = container.get_service(WORKLOAD_SERVICE)
         assert service.is_running()
         assert isinstance(harness.model.unit.status, ActiveStatus)
 
@@ -85,7 +90,7 @@ class TestDatabaseCreatedEvent:
     ) -> None:
         container = harness.model.unit.get_container(WORKLOAD_CONTAINER)
 
-        service = container.get_service(WORKLOAD_CONTAINER)
+        service = container.get_service(WORKLOAD_SERVICE)
         assert service.is_running()
         assert isinstance(harness.model.unit.status, ActiveStatus)
 
@@ -102,9 +107,7 @@ class TestConfigChangedEvent:
 
         assert isinstance(harness.model.unit.status, BlockedStatus)
 
-    def test_when_database_not_created(
-        self, harness: Harness, database_relation: int
-    ) -> None:
+    def test_when_database_not_created(self, harness: Harness, database_relation: int) -> None:
         harness.charm.on.config_changed.emit()
 
         assert isinstance(harness.model.unit.status, WaitingStatus)
@@ -116,6 +119,6 @@ class TestConfigChangedEvent:
 
         harness.charm.on.config_changed.emit()
 
-        service = container.get_service(WORKLOAD_CONTAINER)
+        service = container.get_service(WORKLOAD_SERVICE)
         assert service.is_running()
         assert isinstance(harness.model.unit.status, ActiveStatus)

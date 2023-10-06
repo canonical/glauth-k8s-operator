@@ -7,12 +7,12 @@ from ops.charm import CharmBase, HookEvent
 from ops.model import BlockedStatus, WaitingStatus
 from ops.testing import Harness
 
-from constants import WORKLOAD_CONTAINER
+from constants import DATABASE_INTEGRATION_NAME, WORKLOAD_CONTAINER
 from validators import (
     leader_unit,
     validate_container_connectivity,
-    validate_database_relation,
     validate_database_resource,
+    validate_integration_exists,
 )
 
 
@@ -33,9 +33,7 @@ class TestValidators:
 
         assert wrapped(harness.charm) is None
 
-    def test_container_connected(
-        self, harness: Harness, mocked_hook_event: MagicMock
-    ) -> None:
+    def test_container_connected(self, harness: Harness, mocked_hook_event: MagicMock) -> None:
         @validate_container_connectivity
         def wrapped(charm: CharmBase, event: HookEvent):
             return sentinel
@@ -44,9 +42,7 @@ class TestValidators:
 
         assert wrapped(harness.charm, mocked_hook_event) is sentinel
 
-    def test_container_not_connected(
-        self, harness: Harness, mocked_hook_event: MagicMock
-    ):
+    def test_container_not_connected(self, harness: Harness, mocked_hook_event: MagicMock):
         @validate_container_connectivity
         def wrapped(charm: CharmBase, event: HookEvent):
             return sentinel
@@ -54,7 +50,7 @@ class TestValidators:
         harness.set_can_connect(WORKLOAD_CONTAINER, False)
 
         assert wrapped(harness.charm, mocked_hook_event) is None
-        assert isinstance(harness.charm.unit.status, WaitingStatus)
+        assert isinstance(harness.model.unit.status, WaitingStatus)
 
     def test_when_database_relation_integrated(
         self,
@@ -62,7 +58,7 @@ class TestValidators:
         database_relation: int,
         mocked_hook_event: MagicMock,
     ) -> None:
-        @validate_database_relation
+        @validate_integration_exists(DATABASE_INTEGRATION_NAME)
         def wrapped(charm: CharmBase, event: HookEvent):
             return sentinel
 
@@ -71,12 +67,12 @@ class TestValidators:
     def test_when_database_relation_not_integrated(
         self, harness: Harness, mocked_hook_event: MagicMock
     ) -> None:
-        @validate_database_relation
+        @validate_integration_exists(DATABASE_INTEGRATION_NAME)
         def wrapped(charm: CharmBase, event: HookEvent):
             return sentinel
 
         assert wrapped(harness.charm, mocked_hook_event) is None
-        assert isinstance(harness.charm.unit.status, BlockedStatus)
+        assert isinstance(harness.model.unit.status, BlockedStatus)
 
     def test_database_resource_created(
         self, harness: Harness, database_resource, mocked_hook_event: MagicMock
@@ -95,4 +91,4 @@ class TestValidators:
             return sentinel
 
         assert wrapped(harness.charm, mocked_hook_event) is None
-        assert isinstance(harness.charm.unit.status, WaitingStatus)
+        assert isinstance(harness.model.unit.status, WaitingStatus)

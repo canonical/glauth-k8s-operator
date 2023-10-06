@@ -8,7 +8,7 @@ from ops.testing import Harness
 from pytest_mock import MockerFixture
 
 from charm import GLAuthCharm
-from constants import DATABASE_RELATION_NAME
+from constants import DATABASE_INTEGRATION_NAME
 
 DB_APP = "postgresql-k8s"
 DB_USERNAME = "relation_id"
@@ -58,7 +58,7 @@ def mocked_statefulset(mocker: MockerFixture) -> MagicMock:
 
 @pytest.fixture()
 def database_relation(harness: Harness) -> int:
-    relation_id = harness.add_relation(DATABASE_RELATION_NAME, DB_APP)
+    relation_id = harness.add_relation(DATABASE_INTEGRATION_NAME, DB_APP)
     harness.add_relation_unit(relation_id, "postgresql-k8s/0")
     return relation_id
 

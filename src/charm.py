@@ -14,13 +14,8 @@ from charms.data_platform_libs.v0.data_interfaces import (
     DatabaseRequires,
 )
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
-from charms.loki_k8s.v0.loki_push_api import (
-    LogProxyConsumer,
-    PromtailDigestError,
-)
-from charms.observability_libs.v0.kubernetes_service_patch import (
-    KubernetesServicePatch,
-)
+from charms.loki_k8s.v0.loki_push_api import LogProxyConsumer, PromtailDigestError
+from charms.observability_libs.v0.kubernetes_service_patch import KubernetesServicePatch
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from jinja2 import Template
 from lightkube import Client
@@ -37,23 +32,24 @@ from ops.model import ActiveStatus, BlockedStatus
 from ops.pebble import ChangeError, Layer
 
 from constants import (
-    DATABASE_RELATION_NAME,
+    DATABASE_INTEGRATION_NAME,
     GLAUTH_COMMANDS,
     GLAUTH_CONFIG_DIR,
     GLAUTH_LDAP_PORT,
-    GRAFANA_DASHBOARD_RELATION_NAME,
+    GRAFANA_DASHBOARD_INTEGRATION_NAME,
     LOG_DIR,
     LOG_FILE,
-    LOKI_API_PUSH_RELATION_NAME,
-    PROMETHEUS_SCRAPE_RELATION_NAME,
+    LOKI_API_PUSH_INTEGRATION_NAME,
+    PROMETHEUS_SCRAPE_INTEGRATION_NAME,
     WORKLOAD_CONTAINER,
+    WORKLOAD_SERVICE,
 )
 from kubernetes_resource import ConfigMapResource, StatefulSetResource
 from validators import (
     leader_unit,
     validate_container_connectivity,
-    validate_database_relation,
     validate_database_resource,
+    validate_integration_exists,
 )
 
 logger = logging.getLogger(__name__)
@@ -66,53 +62,39 @@ class GLAuthCharm(CharmBase):
         super().__init__(*args)
         self._container = self.unit.get_container(WORKLOAD_CONTAINER)
 
-        self._k8s_client = Client(
-            field_manager=self.app.name, namespace=self.model.name
-        )
-        self._configmap = ConfigMapResource(
-            client=self._k8s_client, name=self.app.name
-        )
-        self._statefulset = StatefulSetResource(
-            client=self._k8s_client, name=self.app.name
-        )
+        self._k8s_client = Client(field_manager=self.app.name, namespace=self.model.name)
+        self._configmap = ConfigMapResource(client=self._k8s_client, name=self.app.name)
+        self._statefulset = StatefulSetResource(client=self._k8s_client, name=self.app.name)
 
         self._db_name = f"{self.model.name}_{self.app.name}"
         self.database = DatabaseRequires(
             self,
-            relation_name=DATABASE_RELATION_NAME,
+            relation_name=DATABASE_INTEGRATION_NAME,
             database_name=self._db_name,
             extra_user_roles="SUPERUSER",
         )
 
-        self.service_patcher = KubernetesServicePatch(
-            self, [("ldap", GLAUTH_LDAP_PORT)]
-        )
+        self.service_patcher = KubernetesServicePatch(self, [("ldap", GLAUTH_LDAP_PORT)])
 
         self.loki_consumer = LogProxyConsumer(
             self,
             log_files=[str(LOG_FILE)],
-            relation_name=LOKI_API_PUSH_RELATION_NAME,
+            relation_name=LOKI_API_PUSH_INTEGRATION_NAME,
             container_name=WORKLOAD_CONTAINER,
         )
         self.metrics_endpoint = MetricsEndpointProvider(
-            self, relation_name=PROMETHEUS_SCRAPE_RELATION_NAME
+            self, relation_name=PROMETHEUS_SCRAPE_INTEGRATION_NAME
         )
         self._grafana_dashboards = GrafanaDashboardProvider(
-            self, relation_name=GRAFANA_DASHBOARD_RELATION_NAME
+            self, relation_name=GRAFANA_DASHBOARD_INTEGRATION_NAME
         )
 
         self.framework.observe(self.on.install, self._on_install)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.remove, self._on_remove)
-        self.framework.observe(
-            self.on.glauth_pebble_ready, self._on_pebble_ready
-        )
-        self.framework.observe(
-            self.database.on.database_created, self._on_database_created
-        )
-        self.framework.observe(
-            self.database.on.endpoints_changed, self._on_database_changed
-        )
+        self.framework.observe(self.on.glauth_pebble_ready, self._on_pebble_ready)
+        self.framework.observe(self.database.on.database_created, self._on_database_created)
+        self.framework.observe(self.database.on.endpoints_changed, self._on_database_changed)
         self.framework.observe(
             self.loki_consumer.on.promtail_digest_error,
             self._on_promtail_error,
@@ -124,7 +106,7 @@ class GLAuthCharm(CharmBase):
             "summary": "GLAuth layer",
             "description": "pebble layer for GLAuth service",
             "services": {
-                WORKLOAD_CONTAINER: {
+                WORKLOAD_SERVICE: {
                     "override": "replace",
                     "summary": "GLAuth Operator layer",
                     "startup": "disabled",
@@ -147,13 +129,11 @@ class GLAuthCharm(CharmBase):
             )
 
     @validate_container_connectivity
-    @validate_database_relation
+    @validate_integration_exists(DATABASE_INTEGRATION_NAME)
     @validate_database_resource
     def _handle_event_update(self, event: HookEvent) -> None:
         self._update_glauth_config()
-        self._container.add_layer(
-            WORKLOAD_CONTAINER, self._pebble_layer, combine=True
-        )
+        self._container.add_layer(WORKLOAD_CONTAINER, self._pebble_layer, combine=True)
 
         self._restart_glauth_service()
         self.unit.status = ActiveStatus()
@@ -221,15 +201,11 @@ class GLAuthCharm(CharmBase):
     def _on_database_created(self, event: DatabaseCreatedEvent):
         self._update_glauth_config()
         self._mount_glauth_config()
-        self._container.add_layer(
-            WORKLOAD_CONTAINER, self._pebble_layer, combine=True
-        )
+        self._container.add_layer(WORKLOAD_CONTAINER, self._pebble_layer, combine=True)
         self._restart_glauth_service()
         self.unit.status = ActiveStatus()
 
-    def _on_database_changed(
-        self, event: DatabaseEndpointsChangedEvent
-    ) -> None:
+    def _on_database_changed(self, event: DatabaseEndpointsChangedEvent) -> None:
         self._handle_event_update(event)
 
     def _on_config_changed(self, event: ConfigChangedEvent):

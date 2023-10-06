@@ -21,6 +21,11 @@ from tenacity import (
 logger = logging.getLogger(__name__)
 
 
+class KubernetesResourceError(Exception):
+    def __init__(self, message: str):
+        self.message = message
+
+
 def watch_for_update(func: Callable):
     def wrapper(self, *args, **kwargs):
         resource = self.get()
@@ -36,10 +41,7 @@ def watch_for_update(func: Callable):
             ):
                 with attempt:
                     resource = self.get()
-                    if (
-                        not resource
-                        or resource.metadata.resourceVersion == version
-                    ):
+                    if not resource or resource.metadata.resourceVersion == version:
                         raise TryAgain
         except RetryError:
             logger.debug("No changes in the watched k8s resource")
@@ -58,9 +60,7 @@ class ConfigMapResource:
 
     def get(self):
         try:
-            cm = self._client.get(
-                ConfigMap, self._name, namespace=self._client.namespace
-            )
+            cm = self._client.get(ConfigMap, self._name, namespace=self._client.namespace)
             return cm
         except ApiError as e:
             logging.error(f"Error fetching ConfigMap: {e}")
@@ -81,6 +81,7 @@ class ConfigMapResource:
             self._client.create(cm)
         except ApiError as e:
             logging.error(f"Error creating ConfigMap: {e}")
+            raise KubernetesResourceError(f"Failed to create ConfigMap {self._name}")
 
     @watch_for_update
     def patch(self, data: dict):
@@ -98,9 +99,7 @@ class ConfigMapResource:
 
     def delete(self):
         try:
-            self._client.delete(
-                ConfigMap, self._name, namespace=self._client.namespace
-            )
+            self._client.delete(ConfigMap, self._name, namespace=self._client.namespace)
         except ApiError as e:
             logging.error(f"Error deleting ConfigMap: {e}")
 
@@ -116,9 +115,7 @@ class StatefulSetResource:
 
     def get(self):
         try:
-            ss = self._client.get(
-                StatefulSet, self._name, namespace=self._client.namespace
-            )
+            ss = self._client.get(StatefulSet, self._name, namespace=self._client.namespace)
             return ss
         except ApiError as e:
             logging.error(f"Error fetching ConfigMap: {e}")

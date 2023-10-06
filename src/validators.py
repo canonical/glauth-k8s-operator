@@ -5,17 +5,15 @@ import logging
 from functools import wraps
 from typing import Any, Callable
 
-from ops.charm import EventBase
+from ops.charm import CharmBase, EventBase
 from ops.model import BlockedStatus, MaintenanceStatus, WaitingStatus
-
-from constants import DATABASE_RELATION_NAME
 
 logger = logging.getLogger(__name__)
 
 
 def leader_unit(func: Callable):
     @wraps(func)
-    def wrapper(self, *args: EventBase, **kwargs: Any):
+    def wrapper(self: CharmBase, *args: EventBase, **kwargs: Any):
         if not self.unit.is_leader():
             return
 
@@ -26,16 +24,14 @@ def leader_unit(func: Callable):
 
 def validate_container_connectivity(func: Callable):
     @wraps(func)
-    def wrapper(self, *args: EventBase, **kwargs: Any):
+    def wrapper(self: CharmBase, *args: EventBase, **kwargs: Any):
         event, *_ = args
         logger.debug(f"Handling event: {event}")
         if not self._container.can_connect():
             logger.debug(f"Cannot connect to container, defer event {event}.")
             event.defer()
 
-            self.unit.status = WaitingStatus(
-                "Waiting to connect to " "container."
-            )
+            self.unit.status = WaitingStatus("Waiting to connect to container.")
             return
 
         return func(self, *args, **kwargs)
@@ -43,38 +39,39 @@ def validate_container_connectivity(func: Callable):
     return wrapper
 
 
-def validate_database_relation(func: Callable):
-    @wraps(func)
-    def wrapper(self, *args: EventBase, **kwargs: Any):
-        event, *_ = args
-        logger.debug(f"Handling event: {event}")
+def validate_integration_exists(integration_name: str):
+    def decorator(func: Callable):
+        @wraps(func)
+        def wrapper(self: CharmBase, *args: EventBase, **kwargs: Any):
+            event, *_ = args
+            logger.debug(f"Handling event: {event}")
 
-        self.unit.status = MaintenanceStatus("Configuring resources")
-        if not self.model.relations[DATABASE_RELATION_NAME]:
-            logger.debug(f"Database relation is missing, defer event {event}.")
-            event.defer()
+            self.unit.status = MaintenanceStatus("Configuring resources")
+            if not self.model.relations[integration_name]:
+                logger.debug(f"Integration {integration_name} is missing, defer event {event}.")
+                event.defer()
 
-            self.unit.status = BlockedStatus(
-                "Missing required relation with " "database"
-            )
-            return
+                self.unit.status = BlockedStatus(
+                    f"Missing required integration {integration_name}"
+                )
+                return
 
-        return func(self, *args, **kwargs)
+            return func(self, *args, **kwargs)
 
-    return wrapper
+        return wrapper
+
+    return decorator
 
 
 def validate_database_resource(func: Callable):
     @wraps(func)
-    def wrapper(self, *args: EventBase, **kwargs: Any):
+    def wrapper(self: CharmBase, *args: EventBase, **kwargs: Any):
         event, *_ = args
         logger.debug(f"Handling event: {event}")
 
         self.unit.status = MaintenanceStatus("Configuring resources")
         if not self.database.is_resource_created():
-            logger.debug(
-                f"Database has not been created yet, defer event {event}"
-            )
+            logger.debug(f"Database has not been created yet, defer event {event}")
             event.defer()
 
             self.unit.status = WaitingStatus("Waiting for database creation")
