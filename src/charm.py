@@ -28,7 +28,7 @@ from ops.charm import (
     RemoveEvent,
 )
 from ops.main import main
-from ops.model import ActiveStatus, BlockedStatus
+from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
 from ops.pebble import ChangeError, Layer
 
 from constants import (
@@ -132,6 +132,8 @@ class GLAuthCharm(CharmBase):
     @validate_integration_exists(DATABASE_INTEGRATION_NAME)
     @validate_database_resource
     def _handle_event_update(self, event: HookEvent) -> None:
+        self.unit.status = MaintenanceStatus("Configuring GLAuth container")
+
         self._update_glauth_config()
         self._container.add_layer(WORKLOAD_CONTAINER, self._pebble_layer, combine=True)
 

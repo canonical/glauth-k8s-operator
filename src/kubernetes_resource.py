@@ -2,21 +2,12 @@
 # See LICENSE file for licensing details.
 
 import logging
-from typing import Callable
 
 from lightkube import Client
 from lightkube.core.exceptions import ApiError
 from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.apps_v1 import StatefulSet
 from lightkube.resources.core_v1 import ConfigMap
-from tenacity import (
-    RetryError,
-    Retrying,
-    TryAgain,
-    before_log,
-    stop_after_attempt,
-    wait_exponential,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -24,29 +15,6 @@ logger = logging.getLogger(__name__)
 class KubernetesResourceError(Exception):
     def __init__(self, message: str):
         self.message = message
-
-
-def watch_for_update(func: Callable):
-    def wrapper(self, *args, **kwargs):
-        resource = self.get()
-        version = resource.metadata.resourceVersion if resource else None
-
-        func(self, *args, **kwargs)
-
-        try:
-            for attempt in Retrying(
-                wait=wait_exponential(multiplier=1, min=1, max=30),
-                stop=stop_after_attempt(5),
-                before=before_log(logger, log_level=logging.INFO),
-            ):
-                with attempt:
-                    resource = self.get()
-                    if not resource or resource.metadata.resourceVersion == version:
-                        raise TryAgain
-        except RetryError:
-            logger.debug("No changes in the watched k8s resource")
-
-    return wrapper
 
 
 class ConfigMapResource:
@@ -83,7 +51,6 @@ class ConfigMapResource:
             logging.error(f"Error creating ConfigMap: {e}")
             raise KubernetesResourceError(f"Failed to create ConfigMap {self._name}")
 
-    @watch_for_update
     def patch(self, data: dict):
         patch_data = {"data": data}
 

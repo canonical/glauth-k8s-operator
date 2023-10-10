@@ -6,7 +6,7 @@ from functools import wraps
 from typing import Any, Callable
 
 from ops.charm import CharmBase, EventBase
-from ops.model import BlockedStatus, MaintenanceStatus, WaitingStatus
+from ops.model import BlockedStatus, WaitingStatus
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,6 @@ def validate_integration_exists(integration_name: str):
             event, *_ = args
             logger.debug(f"Handling event: {event}")
 
-            self.unit.status = MaintenanceStatus("Configuring resources")
             if not self.model.relations[integration_name]:
                 logger.debug(f"Integration {integration_name} is missing, defer event {event}.")
                 event.defer()
@@ -69,7 +68,6 @@ def validate_database_resource(func: Callable):
         event, *_ = args
         logger.debug(f"Handling event: {event}")
 
-        self.unit.status = MaintenanceStatus("Configuring resources")
         if not self.database.is_resource_created():
             logger.debug(f"Database has not been created yet, defer event {event}")
             event.defer()
