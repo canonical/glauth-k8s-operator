@@ -3,7 +3,7 @@
 
 import logging
 from functools import wraps
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from ops.charm import CharmBase, EventBase
 from ops.model import BlockedStatus, WaitingStatus
@@ -11,20 +11,20 @@ from ops.model import BlockedStatus, WaitingStatus
 logger = logging.getLogger(__name__)
 
 
-def leader_unit(func: Callable):
+def leader_unit(func: Callable) -> Callable:
     @wraps(func)
-    def wrapper(self: CharmBase, *args: EventBase, **kwargs: Any):
+    def wrapper(self: CharmBase, *args: EventBase, **kwargs: Any) -> Optional[Any]:
         if not self.unit.is_leader():
-            return
+            return None
 
         return func(self, *args, **kwargs)
 
     return wrapper
 
 
-def validate_container_connectivity(func: Callable):
+def validate_container_connectivity(func: Callable) -> Callable:
     @wraps(func)
-    def wrapper(self: CharmBase, *args: EventBase, **kwargs: Any):
+    def wrapper(self: CharmBase, *args: EventBase, **kwargs: Any) -> Optional[Any]:
         event, *_ = args
         logger.debug(f"Handling event: {event}")
         if not self._container.can_connect():
@@ -32,17 +32,17 @@ def validate_container_connectivity(func: Callable):
             event.defer()
 
             self.unit.status = WaitingStatus("Waiting to connect to container.")
-            return
+            return None
 
         return func(self, *args, **kwargs)
 
     return wrapper
 
 
-def validate_integration_exists(integration_name: str):
-    def decorator(func: Callable):
+def validate_integration_exists(integration_name: str) -> Callable:
+    def decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(self: CharmBase, *args: EventBase, **kwargs: Any):
+        def wrapper(self: CharmBase, *args: EventBase, **kwargs: Any) -> Optional[Any]:
             event, *_ = args
             logger.debug(f"Handling event: {event}")
 
@@ -53,7 +53,7 @@ def validate_integration_exists(integration_name: str):
                 self.unit.status = BlockedStatus(
                     f"Missing required integration {integration_name}"
                 )
-                return
+                return None
 
             return func(self, *args, **kwargs)
 
@@ -62,9 +62,9 @@ def validate_integration_exists(integration_name: str):
     return decorator
 
 
-def validate_database_resource(func: Callable):
+def validate_database_resource(func: Callable) -> Callable:
     @wraps(func)
-    def wrapper(self: CharmBase, *args: EventBase, **kwargs: Any):
+    def wrapper(self: CharmBase, *args: EventBase, **kwargs: Any) -> Optional[Any]:
         event, *_ = args
         logger.debug(f"Handling event: {event}")
 
@@ -73,7 +73,7 @@ def validate_database_resource(func: Callable):
             event.defer()
 
             self.unit.status = WaitingStatus("Waiting for database creation")
-            return
+            return None
 
         return func(self, *args, **kwargs)
 

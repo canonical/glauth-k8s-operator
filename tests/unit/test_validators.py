@@ -17,16 +17,16 @@ from validators import (
 
 
 class TestValidators:
-    def test_leader_unit(self, harness: Harness):
+    def test_leader_unit(self, harness: Harness) -> None:
         @leader_unit
-        def wrapped_func(charm: CharmBase):
+        def wrapped_func(charm: CharmBase) -> sentinel:
             return sentinel
 
         assert wrapped_func(harness.charm) is sentinel
 
-    def test_not_leader_unit(self, harness: Harness):
+    def test_not_leader_unit(self, harness: Harness) -> None:
         @leader_unit
-        def wrapped(charm: CharmBase):
+        def wrapped(charm: CharmBase) -> sentinel:
             return sentinel
 
         harness.set_leader(False)
@@ -35,16 +35,16 @@ class TestValidators:
 
     def test_container_connected(self, harness: Harness, mocked_hook_event: MagicMock) -> None:
         @validate_container_connectivity
-        def wrapped(charm: CharmBase, event: HookEvent):
+        def wrapped(charm: CharmBase, event: HookEvent) -> sentinel:
             return sentinel
 
         harness.set_can_connect(WORKLOAD_CONTAINER, True)
 
         assert wrapped(harness.charm, mocked_hook_event) is sentinel
 
-    def test_container_not_connected(self, harness: Harness, mocked_hook_event: MagicMock):
+    def test_container_not_connected(self, harness: Harness, mocked_hook_event: MagicMock) -> None:
         @validate_container_connectivity
-        def wrapped(charm: CharmBase, event: HookEvent):
+        def wrapped(charm: CharmBase, event: HookEvent) -> sentinel:
             return sentinel
 
         harness.set_can_connect(WORKLOAD_CONTAINER, False)
@@ -59,7 +59,7 @@ class TestValidators:
         mocked_hook_event: MagicMock,
     ) -> None:
         @validate_integration_exists(DATABASE_INTEGRATION_NAME)
-        def wrapped(charm: CharmBase, event: HookEvent):
+        def wrapped(charm: CharmBase, event: HookEvent) -> sentinel:
             return sentinel
 
         assert wrapped(harness.charm, mocked_hook_event) is sentinel
@@ -68,17 +68,17 @@ class TestValidators:
         self, harness: Harness, mocked_hook_event: MagicMock
     ) -> None:
         @validate_integration_exists(DATABASE_INTEGRATION_NAME)
-        def wrapped(charm: CharmBase, event: HookEvent):
+        def wrapped(charm: CharmBase, event: HookEvent) -> sentinel:
             return sentinel
 
         assert wrapped(harness.charm, mocked_hook_event) is None
         assert isinstance(harness.model.unit.status, BlockedStatus)
 
     def test_database_resource_created(
-        self, harness: Harness, database_resource, mocked_hook_event: MagicMock
+        self, harness: Harness, database_resource: MagicMock, mocked_hook_event: MagicMock
     ) -> None:
         @validate_database_resource
-        def wrapped(charm: CharmBase, event: HookEvent):
+        def wrapped(charm: CharmBase, event: HookEvent) -> sentinel:
             return sentinel
 
         assert wrapped(harness.charm, mocked_hook_event) is sentinel
@@ -87,7 +87,7 @@ class TestValidators:
         self, harness: Harness, mocked_hook_event: MagicMock
     ) -> None:
         @validate_database_resource
-        def wrapped(charm: CharmBase, event: HookEvent):
+        def wrapped(charm: CharmBase, event: HookEvent) -> sentinel:
             return sentinel
 
         assert wrapped(harness.charm, mocked_hook_event) is None

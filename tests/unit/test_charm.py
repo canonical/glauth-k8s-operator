@@ -1,6 +1,8 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+from unittest.mock import MagicMock
+
 import pytest
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 from ops.testing import Harness
@@ -73,7 +75,7 @@ class TestPebbleReadyEvent:
         assert isinstance(harness.model.unit.status, WaitingStatus)
 
     def test_pebble_ready_event(
-        self, harness: Harness, database_relation: int, database_resource
+        self, harness: Harness, database_relation: int, database_resource: MagicMock
     ) -> None:
         container = harness.model.unit.get_container(WORKLOAD_CONTAINER)
 
@@ -86,7 +88,7 @@ class TestPebbleReadyEvent:
 
 class TestDatabaseCreatedEvent:
     def test_database_created_event(
-        self, harness: Harness, database_relation: int, database_resource
+        self, harness: Harness, database_relation: int, database_resource: MagicMock
     ) -> None:
         container = harness.model.unit.get_container(WORKLOAD_CONTAINER)
 
@@ -113,7 +115,7 @@ class TestConfigChangedEvent:
         assert isinstance(harness.model.unit.status, WaitingStatus)
 
     def test_on_config_changed_event(
-        self, harness: Harness, database_relation: int, database_resource
+        self, harness: Harness, database_relation: int, database_resource: MagicMock
     ) -> None:
         container = harness.model.unit.get_container(WORKLOAD_CONTAINER)
 

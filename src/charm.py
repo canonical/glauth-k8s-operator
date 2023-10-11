@@ -7,6 +7,7 @@
 """A Juju Kubernetes charmed operator for GLAuth."""
 
 import logging
+from typing import Any
 
 from charms.data_platform_libs.v0.data_interfaces import (
     DatabaseCreatedEvent,
@@ -58,7 +59,7 @@ logger = logging.getLogger(__name__)
 class GLAuthCharm(CharmBase):
     """Charm the service."""
 
-    def __init__(self, *args):
+    def __init__(self, *args: Any):
         super().__init__(*args)
         self._container = self.unit.get_container(WORKLOAD_CONTAINER)
 
@@ -119,7 +120,7 @@ class GLAuthCharm(CharmBase):
         }
         return Layer(pebble_layer)
 
-    def _restart_glauth_service(self):
+    def _restart_glauth_service(self) -> None:
         try:
             self._container.restart(WORKLOAD_CONTAINER)
         except ChangeError as err:
@@ -140,7 +141,7 @@ class GLAuthCharm(CharmBase):
         self._restart_glauth_service()
         self.unit.status = ActiveStatus()
 
-    def _fetch_database_relation_data(self):
+    def _fetch_database_relation_data(self) -> dict:
         relation_id = self.database.relations[0].id
         relation_data = self.database.fetch_relation_data()[relation_id]
 
@@ -151,7 +152,7 @@ class GLAuthCharm(CharmBase):
             "database_name": self._db_name,
         }
 
-    def _render_config_file(self):
+    def _render_config_file(self) -> str:
         with open("templates/glauth.cfg.j2", mode="r") as file:
             template = Template(file.read())
 
@@ -163,12 +164,12 @@ class GLAuthCharm(CharmBase):
         return rendered
 
     @leader_unit
-    def _update_glauth_config(self):
+    def _update_glauth_config(self) -> None:
         conf = self._render_config_file()
         self._configmap.patch({"glauth.cfg": conf})
 
     @leader_unit
-    def _mount_glauth_config(self):
+    def _mount_glauth_config(self) -> None:
         pod_spec_patch = {
             "containers": [
                 {
@@ -193,14 +194,14 @@ class GLAuthCharm(CharmBase):
         self._statefulset.patch(patch_data)
 
     @leader_unit
-    def _on_install(self, event: InstallEvent):
+    def _on_install(self, event: InstallEvent) -> None:
         self._configmap.create()
 
     @leader_unit
-    def _on_remove(self, event: RemoveEvent):
+    def _on_remove(self, event: RemoveEvent) -> None:
         self._configmap.delete()
 
-    def _on_database_created(self, event: DatabaseCreatedEvent):
+    def _on_database_created(self, event: DatabaseCreatedEvent) -> None:
         self._update_glauth_config()
         self._mount_glauth_config()
         self._container.add_layer(WORKLOAD_CONTAINER, self._pebble_layer, combine=True)
@@ -210,11 +211,11 @@ class GLAuthCharm(CharmBase):
     def _on_database_changed(self, event: DatabaseEndpointsChangedEvent) -> None:
         self._handle_event_update(event)
 
-    def _on_config_changed(self, event: ConfigChangedEvent):
+    def _on_config_changed(self, event: ConfigChangedEvent) -> None:
         self._handle_event_update(event)
 
     @validate_container_connectivity
-    def _on_pebble_ready(self, event: PebbleReadyEvent):
+    def _on_pebble_ready(self, event: PebbleReadyEvent) -> None:
         if not self._container.isdir(LOG_DIR):
             self._container.make_dir(path=LOG_DIR, make_parents=True)
             logger.debug(f"Created logging directory {LOG_DIR}")

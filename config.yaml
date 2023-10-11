@@ -1,5 +1,5 @@
 options:
-  log-level:
+  log_level:
     description: |
       Configures the log level. 
 

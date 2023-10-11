@@ -42,7 +42,7 @@ def harness(mocked_kubernetes_service_patcher: MagicMock) -> Harness:
 
 
 @pytest.fixture()
-def mocked_hook_event(mocker: MockerFixture):
+def mocked_hook_event(mocker: MockerFixture) -> MagicMock:
     return mocker.patch("ops.charm.HookEvent", autospec=True)
 
 
