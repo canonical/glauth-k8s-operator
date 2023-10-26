@@ -3,12 +3,12 @@
 
 """# Juju Charm Library for the `ldap` Juju Interface
 
-This juju charm library contains the Provider and Consumer classes for handling
+This juju charm library contains the Provider and Requirer classes for handling
 the `ldap` interface.
 
-## Consumer Charm
+## Requirer Charm
 
-The consumer charm is expected to:
+The requirer charm is expected to:
 
 - Provide information for the provider charm to pass LDAP related
 information in the juju integration, in order to communicate with the LDAP
@@ -21,32 +21,34 @@ situation when the LDAP integration is broken
 ```python
 
 from charms.glauth_k8s.v0.ldap import (
-    LdapConsumer,
+    LdapRequirer,
     LdapReadyEvent,
     LdapUnavailableEvent,
 )
 
-class ConsumerCharm(CharmBase):
-    # LDAP consumer charm that integrates with an LDAP provider charm.
+class RequirerCharm(CharmBase):
+    # LDAP requirer charm that integrates with an LDAP provider charm.
 
     def __init__(self, *args):
         super().__init__(*args)
 
-        self.ldap_consumer = LdapConsumer(self)
+        self.ldap_requirer = LdapRequirer(self)
         self.framework.observe(
-            self.ldap_consumer.on.ldap_ready,
+            self.ldap_requirer.on.ldap_ready,
             self._on_ldap_ready,
         )
         self.framework.observe(
-            self.ldap_consumer.on.ldap_unavailable,
+            self.ldap_requirer.on.ldap_unavailable,
             self._on_ldap_unavailable,
         )
 
     def _on_ldap_ready(self, event: LdapReadyEvent) -> None:
         # Consume the LDAP related information
-        ldap_data = LdapConsumer.consume_ldap_relation_data(event.relation)
+        ldap_data = self.ldap_requirer.consume_ldap_relation_data(
+            event.relation.id,
+        )
 
-        # Configure the LDAP consumer charm
+        # Configure the LDAP requirer charm
         ...
 
     def _on_ldap_unavailable(self, event: LdapUnavailableEvent) -> None:
@@ -58,10 +60,10 @@ As shown above, the library offers custom juju events to handle specific
 situations, which are listed below:
 
 - ldap_ready: event emitted when the LDAP related information is ready for
-consumer charm to use.
+requirer charm to use.
 - ldap_unavailable: event emitted when the LDAP integration is broken.
 
-Additionally, the consumer charmed operator needs to declare the `ldap`
+Additionally, the requirer charmed operator needs to declare the `ldap`
 interface in the `metadata.yaml`:
 
 ```yaml
@@ -74,8 +76,8 @@ requires:
 
 The provider charm is expected to:
 
-- Use the information provided by the consumer charm to provide LDAP related
-information for the consumer charm to connect and authenticate to the LDAP
+- Use the information provided by the requirer charm to provide LDAP related
+information for the requirer charm to connect and authenticate to the LDAP
 server
 - Listen to the custom juju event `LdapRequestedEvent` to offer LDAP related
 information in the integration
@@ -100,10 +102,10 @@ class ProviderCharm(CharmBase):
     )
 
     def _on_ldap_requested(self, event: LdapRequestedEvent) -> None:
-        # Consume the information provided by the consumer charm
-        consumer_data = event.data
+        # Consume the information provided by the requirer charm
+        requirer_data = event.data
 
-        # Prepare the LDAP related information
+        # Prepare the LDAP related information using the requirer's data
         ldap_data = ...
 
         # Update the integration data
@@ -116,7 +118,7 @@ class ProviderCharm(CharmBase):
 As shown above, the library offers custom juju events to handle specific
 situations, which are listed below:
 
--  ldap_requested: event emitted when the consumer charm is requesting the
+-  ldap_requested: event emitted when the requirer charm is requesting the
 LDAP related information in order to connect and authenticate to the LDAP server
 """
 
@@ -153,7 +155,7 @@ DEFAULT_RELATION_NAME = "ldap"
 def leader_unit(func: Callable) -> Callable:
     @wraps(func)
     def wrapper(
-        obj: Union["LdapProvider", "LdapConsumer"], *args: Any, **kwargs: Any
+        obj: Union["LdapProvider", "LdapRequirer"], *args: Any, **kwargs: Any
     ) -> Optional[Any]:
         if not obj.unit.is_leader():
             return None
@@ -165,7 +167,7 @@ def leader_unit(func: Callable) -> Callable:
 
 @leader_unit
 def _update_relation_app_databag(
-    ldap: Union["LdapProvider", "LdapConsumer"], relation: Relation, data: dict
+    ldap: Union["LdapProvider", "LdapRequirer"], relation: Relation, data: dict
 ) -> None:
     if relation is None:
         return
@@ -182,7 +184,7 @@ class LdapProviderData:
 
 
 @dataclass(frozen=True)
-class LdapConsumerData:
+class LdapRequirerData:
     app: str
     model: str
 
@@ -191,12 +193,13 @@ class LdapRequestedEvent(RelationEvent):
     """An event emitted when the LDAP integration is built."""
 
     @property
-    def data(self) -> Optional[LdapConsumerData]:
-        if not self.relation.data:
-            return None
-
-        relation_data = self.relation.data[self.relation.app]
-        return from_dict(data_class=LdapConsumerData, data=relation_data)
+    def data(self) -> Optional[LdapRequirerData]:
+        relation_data = self.relation.data.get(self.relation.app)
+        return (
+            from_dict(data_class=LdapRequirerData, data=relation_data)
+            if relation_data
+            else None
+        )
 
 
 class LdapProviderEvents(ObjectEvents):
@@ -211,7 +214,7 @@ class LdapUnavailableEvent(RelationEvent):
     """An event when the LDAP integration is unavailable."""
 
 
-class LdapConsumerEvents(ObjectEvents):
+class LdapRequirerEvents(ObjectEvents):
     ldap_ready = EventSource(LdapReadyEvent)
     ldap_unavailable = EventSource(LdapUnavailableEvent)
 
@@ -238,13 +241,13 @@ class LdapProvider(Object):
 
     @leader_unit
     def _on_relation_changed(self, event: RelationChangedEvent) -> None:
-        """Handle the event emitted when the consumer charm provides the
+        """Handle the event emitted when the requirer charm provides the
         necessary data."""
 
         self.on.ldap_requested.emit(event.relation)
 
     def update_relation_app_data(
-        self, relation_id: int, data: LdapProviderData
+        self, /, relation_id: int, data: LdapProviderData
     ) -> None:
         """An API for the provider charm to provide the LDAP related
         information."""
@@ -255,10 +258,10 @@ class LdapProvider(Object):
         _update_relation_app_databag(self.charm, relation, asdict(data))
 
 
-class LdapConsumer(Object):
-    """An LDAP consumer to consume data delivered by an LDAP provider charm."""
+class LdapRequirer(Object):
+    """An LDAP requirer to consume data delivered by an LDAP provider charm."""
 
-    on = LdapConsumerEvents()
+    on = LdapRequirerEvents()
 
     def __init__(
         self,
@@ -288,10 +291,10 @@ class LdapConsumer(Object):
     def _on_ldap_relation_created(self, event: RelationCreatedEvent) -> None:
         """Handle the event emitted when an LDAP integration is created."""
 
-        app = self.app.name
-        model = self.model.name
+        app_name = self.app.name
+        model_name = self.model.name
         _update_relation_app_databag(
-            self.charm, event.relation, {"app": app, "model": model}
+            self.charm, event.relation, {"app": app_name, "model": model_name}
         )
 
     def _on_ldap_relation_changed(self, event: RelationChangedEvent) -> None:
@@ -310,12 +313,18 @@ class LdapConsumer(Object):
 
         self.on.ldap_unavailable.emit(event.relation)
 
-    @staticmethod
     def consume_ldap_relation_data(
-        relation: Relation,
+        self, /, relation_id: Optional[int] = None,
     ) -> Optional[LdapProviderData]:
-        """An API for the consumer charm to consume the LDAP related
+        """An API for the requirer charm to consume the LDAP related
         information in the application databag."""
+
+        relation = self.charm.model.get_relation(
+            self._relation_name, relation_id
+        )
+
+        if not relation:
+            return None
 
         provider_data = relation.data.get(relation.app)
         return (
