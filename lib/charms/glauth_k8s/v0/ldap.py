@@ -10,7 +10,7 @@ the `ldap` interface.
 
 The requirer charm is expected to:
 
-- Provide information for the provider charm to pass LDAP related
+- Provide information for the provider charm to deliver LDAP related
 information in the juju integration, in order to communicate with the LDAP
 server and authenticate LDAP operations
 - Listen to the custom juju event `LdapReadyEvent` to obtain the LDAP
@@ -99,7 +99,7 @@ class ProviderCharm(CharmBase):
         self.framework.observe(
             self.ldap_provider.on.ldap_requested,
             self._on_ldap_requested,
-    )
+        )
 
     def _on_ldap_requested(self, event: LdapRequestedEvent) -> None:
         # Consume the information provided by the requirer charm
@@ -126,7 +126,7 @@ from dataclasses import asdict, dataclass
 from functools import wraps
 from typing import Any, Callable, Optional, Union
 
-from dacite import from_dict
+from dacite import Config, from_dict
 from ops.charm import (
     CharmBase,
     RelationBrokenEvent,
@@ -145,7 +145,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 1
+LIBPATCH = 2
 
 PYDEPS = ["dacite~=1.8.0"]
 
@@ -172,21 +172,24 @@ def _update_relation_app_databag(
     if relation is None:
         return
 
+    data = {k: str(v) if v else "" for k, v in data.items()}
     relation.data[ldap.app].update(data)
 
 
 @dataclass(frozen=True)
 class LdapProviderData:
-    ldap_uri: str
+    url: str
     base_dn: str
     bind_dn: str
-    bind_password: str
+    bind_password_secret: str
+    auth_method: str
+    starttls: bool
 
 
 @dataclass(frozen=True)
 class LdapRequirerData:
-    app: str
-    model: str
+    user: str
+    group: str
 
 
 class LdapRequestedEvent(RelationEvent):
@@ -267,6 +270,8 @@ class LdapRequirer(Object):
         self,
         charm: CharmBase,
         relation_name: str = DEFAULT_RELATION_NAME,
+        *,
+        data: Optional[LdapRequirerData] = None,
     ) -> None:
         super().__init__(charm, relation_name)
 
@@ -274,6 +279,7 @@ class LdapRequirer(Object):
         self.app = charm.app
         self.unit = charm.unit
         self._relation_name = relation_name
+        self._data = data
 
         self.framework.observe(
             self.charm.on[self._relation_name].relation_created,
@@ -291,10 +297,10 @@ class LdapRequirer(Object):
     def _on_ldap_relation_created(self, event: RelationCreatedEvent) -> None:
         """Handle the event emitted when an LDAP integration is created."""
 
-        app_name = self.app.name
-        model_name = self.model.name
+        user = self._data.user or self.app.name
+        group = self._data.group or self.model.name
         _update_relation_app_databag(
-            self.charm, event.relation, {"app": app_name, "model": model_name}
+            self.charm, event.relation, {"user": user, "group": group}
         )
 
     def _on_ldap_relation_changed(self, event: RelationChangedEvent) -> None:
@@ -314,7 +320,9 @@ class LdapRequirer(Object):
         self.on.ldap_unavailable.emit(event.relation)
 
     def consume_ldap_relation_data(
-        self, /, relation_id: Optional[int] = None,
+        self,
+        /,
+        relation_id: Optional[int] = None,
     ) -> Optional[LdapProviderData]:
         """An API for the requirer charm to consume the LDAP related
         information in the application databag."""
@@ -328,7 +336,11 @@ class LdapRequirer(Object):
 
         provider_data = relation.data.get(relation.app)
         return (
-            from_dict(data_class=LdapProviderData, data=provider_data)
+            from_dict(
+                data_class=LdapProviderData,
+                data=provider_data,
+                config=Config(cast=[bool]),
+            )
             if provider_data
             else None
         )
