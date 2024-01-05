@@ -29,15 +29,51 @@ $ juju integrate glauth-k8s postgresql-k8s
 
 ## Integrations
 
-TBD.
+### `postgresql_client` Integration
+
+The `glauth-k8s` charmed operator requires the integration with the
+`postgres-k8s` charmed operator following the [`postgresql_client` interface
+protocol](https://github.com/canonical/charm-relation-interfaces/tree/main/interfaces/postgresql_client/v0).
+
+```shell
+$ juju integrate glauth-k8s postgresql-k8s
+```
+
+### `ldap` Integration
+
+The `glauth-k8s` charmed operator offers the `ldap` integration with any
+LDAP client charmed operator following
+the [`ldap` interface protocol](https://github.com/canonical/charm-relation-interfaces/tree/main/interfaces/ldap/v0).
+
+```shell
+$ juju integrate <ldap-client-charm>:ldap glauth-k8s:ldap
+```
+
+### `glauth_auxiliary` Integration
+
+The `glauth-k8s` charmed operator provides the `glauth_auxiliary`
+integration with
+the [`glauth-utils` charmed operator](https://github.com/canonical/glauth-utils)
+to deliver necessary auxiliary configurations.
+
+```shell
+$ juju integrate glauth-k8s glauth-utils
+```
 
 ## Configurations
 
-TBD.
+The `glauth-k8s` charmed operator offers the following charm configuration
+options.
 
-## Actions
+| Charm Config Option | Description                                                      | Example                                                 |
+|:-------------------:|------------------------------------------------------------------|---------------------------------------------------------|
+|      `base-dn`      | The portion of the DIT in which to search for matching entries   | `juju config <charm-app> base-dn="dc=glauth,dc=com"`    |
+|     `hostname`      | The hostname of the LDAP server in `glauth-k8s` charmed operator | `juju config <charm-app> hostname="ldap.canonical.com"` |
 
-TBD.
+> ⚠️ **NOTE**
+>
+> The `hostname` should **NOT** contain the ldap scheme (e.g. `ldap://`) and
+> port.
 
 ## Contributing
 
