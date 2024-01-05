@@ -3,7 +3,7 @@ structuredlog = true
 
 [ldap]
   enabled = true
-  listen = "0.0.0.0:{{ ldap_port }}"
+  listen = "0.0.0.0:3893"
 
 [ldaps]
   enabled = false
@@ -13,7 +13,7 @@ structuredlog = true
   plugin = "/bin/postgres.so"
   pluginhandler = "NewPostgresHandler"
   baseDN = "{{ base_dn }}"
-  database = "postgres://{{ db_info.get('username') }}:{{ db_info.get('password') }}@{{ db_info.get('endpoints') }}/{{ db_info.get('database_name') }}?sslmode=disable"
+  database = "postgres://{{ database.get('username') }}:{{ database.get('password') }}@{{ database.get('endpoint') }}/{{ database.get('database') }}?sslmode=disable"
 
 [behaviors]
   # Ignore all capabilities restrictions, for instance allowing every user to perform a search

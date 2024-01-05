@@ -4,28 +4,30 @@
 from unittest.mock import MagicMock
 
 import pytest
+from constants import WORKLOAD_CONTAINER, WORKLOAD_SERVICE
+from kubernetes_resource import KubernetesResourceError
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 from ops.testing import Harness
 from pytest_mock import MockerFixture
 
-from constants import WORKLOAD_CONTAINER, WORKLOAD_SERVICE
-from kubernetes_resource import KubernetesResourceError
-
 
 class TestInstallEvent:
-    def test_on_install_non_leader_unit(self, harness: Harness, mocker: MockerFixture) -> None:
-        mocked = mocker.patch("charm.ConfigMapResource.create")
-
+    def test_on_install_non_leader_unit(
+        self, harness: Harness, mocked_configmap: MagicMock, mocked_statefulset: MagicMock
+    ) -> None:
         harness.set_leader(False)
         harness.charm.on.install.emit()
 
-        mocked.assert_not_called()
+        mocked_configmap.create.assert_not_called()
+        mocked_statefulset.patch.assert_not_called()
 
-    def test_on_install(self, harness: Harness, mocker: MockerFixture) -> None:
-        mocked = mocker.patch("charm.ConfigMapResource.create")
+    def test_on_install(
+        self, harness: Harness, mocked_configmap: MagicMock, mocked_statefulset: MagicMock
+    ) -> None:
         harness.charm.on.install.emit()
 
-        mocked.assert_called_once()
+        mocked_configmap.create.assert_called_once()
+        mocked_statefulset.patch.assert_called_once()
 
     def test_configmap_creation_failed(self, harness: Harness, mocker: MockerFixture) -> None:
         mocked = mocker.patch("charm.ConfigMapResource.create")
@@ -38,19 +40,18 @@ class TestInstallEvent:
 
 
 class TestRemoveEvent:
-    def test_on_remove_non_leader_unit(self, harness: Harness, mocker: MockerFixture) -> None:
-        mocked = mocker.patch("charm.ConfigMapResource.delete")
-
+    def test_on_remove_non_leader_unit(
+        self, harness: Harness, mocked_configmap: MagicMock
+    ) -> None:
         harness.set_leader(False)
         harness.charm.on.remove.emit()
 
-        mocked.assert_not_called()
+        mocked_configmap.delete.assert_not_called()
 
-    def test_on_remove(self, harness: Harness, mocker: MockerFixture) -> None:
-        mocked = mocker.patch("charm.ConfigMapResource.delete")
+    def test_on_remove(self, harness: Harness, mocked_configmap: MagicMock) -> None:
         harness.charm.on.remove.emit()
 
-        mocked.assert_called_once()
+        mocked_configmap.delete.assert_called_once()
 
 
 class TestPebbleReadyEvent:

@@ -29,21 +29,22 @@ this operator.
 
 ## Developing
 
-You can use the environments created by `tox` for development:
+You can use the environments created by `tox` for development. It helps
+install `pre-commit` and `mypy` type checker.
 
 ```shell
-tox --notest -e unit
-source .tox/unit/bin/activate
+$ tox -e dev
+$ source .tox/unit/bin/activate
 ```
 
 ## Testing
 
 ```shell
-tox -e fmt           # update your code according to linting rules
-tox -e lint          # code style
-tox -e unit          # unit tests
-tox -e integration   # integration tests
-tox                  # runs 'fmt', 'lint', and 'unit' environments
+$ tox -e fmt           # update your code according to linting rules
+$ tox -e lint          # code style
+$ tox -e unit          # unit tests
+$ tox -e integration   # integration tests
+$ tox                  # runs 'fmt', 'lint', and 'unit' environments
 ```
 
 ## Build the charm
@@ -58,13 +59,13 @@ $ charmcraft pack
 
 ```shell
 # Create a juju model
-juju add-model dev
+$ juju add-model dev
 
 # Enable DEBUG logging
-juju model-config logging-config="<root>=INFO;unit=DEBUG"
+$ juju model-config logging-config="<root>=INFO;unit=DEBUG"
 
 # Deploy the charm
-juju deploy ./glauth-k8s_ubuntu-*-amd64.charm --resource oci-image=$(yq eval '.resources.oci-image.upstream-source' metadata.yaml)
+$ juju deploy ./glauth-k8s_ubuntu-*-amd64.charm --resource oci-image=$(yq eval '.resources.oci-image.upstream-source' metadata.yaml)
 ```
 
 ## Observability

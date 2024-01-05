@@ -1,7 +1,7 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""# Juju Charm Library for the `ldap` Juju Interface
+"""# Juju Charm Library for the `ldap` Juju Interface.
 
 This juju charm library contains the Provider and Requirer classes for handling
 the `ldap` interface.
@@ -199,9 +199,7 @@ class LdapRequestedEvent(RelationEvent):
     def data(self) -> Optional[LdapRequirerData]:
         relation_data = self.relation.data.get(self.relation.app)
         return (
-            from_dict(data_class=LdapRequirerData, data=relation_data)
-            if relation_data
-            else None
+            from_dict(data_class=LdapRequirerData, data=relation_data) if relation_data else None
         )
 
 
@@ -244,20 +242,17 @@ class LdapProvider(Object):
 
     @leader_unit
     def _on_relation_changed(self, event: RelationChangedEvent) -> None:
-        """Handle the event emitted when the requirer charm provides the
-        necessary data."""
-
+        """Handle the event emitted when the requirer charm provides the necessary data."""
         self.on.ldap_requested.emit(event.relation)
 
     def update_relation_app_data(
-        self, /, relation_id: int, data: LdapProviderData
+        self, /, relation_id: int, data: Optional[LdapProviderData]
     ) -> None:
-        """An API for the provider charm to provide the LDAP related
-        information."""
+        """An API for the provider charm to provide the LDAP related information."""
+        if data is None:
+            return
 
-        relation = self.charm.model.get_relation(
-            self._relation_name, relation_id
-        )
+        relation = self.charm.model.get_relation(self._relation_name, relation_id)
         _update_relation_app_databag(self.charm, relation, asdict(data))
 
 
@@ -296,17 +291,12 @@ class LdapRequirer(Object):
 
     def _on_ldap_relation_created(self, event: RelationCreatedEvent) -> None:
         """Handle the event emitted when an LDAP integration is created."""
-
-        user = self._data.user or self.app.name
-        group = self._data.group or self.model.name
-        _update_relation_app_databag(
-            self.charm, event.relation, {"user": user, "group": group}
-        )
+        user = self._data.user if self._data else self.app.name
+        group = self._data.group if self._data else self.model.name
+        _update_relation_app_databag(self.charm, event.relation, {"user": user, "group": group})
 
     def _on_ldap_relation_changed(self, event: RelationChangedEvent) -> None:
-        """Handle the event emitted when the LDAP related information is
-        ready."""
-
+        """Handle the event emitted when the LDAP related information is ready."""
         provider_app = event.relation.app
 
         if not event.relation.data.get(provider_app):
@@ -316,7 +306,6 @@ class LdapRequirer(Object):
 
     def _on_ldap_relation_broken(self, event: RelationBrokenEvent) -> None:
         """Handle the event emitted when the LDAP integration is broken."""
-
         self.on.ldap_unavailable.emit(event.relation)
 
     def consume_ldap_relation_data(
@@ -324,12 +313,8 @@ class LdapRequirer(Object):
         /,
         relation_id: Optional[int] = None,
     ) -> Optional[LdapProviderData]:
-        """An API for the requirer charm to consume the LDAP related
-        information in the application databag."""
-
-        relation = self.charm.model.get_relation(
-            self._relation_name, relation_id
-        )
+        """An API for the requirer charm to consume the LDAP related information in the application databag."""
+        relation = self.charm.model.get_relation(self._relation_name, relation_id)
 
         if not relation:
             return None

@@ -1,12 +1,16 @@
 options:
   log_level:
     description: |
-      Configures the log level. 
+      Configures the log level.
 
       Acceptable values are: "info", "debug", "warning", "error" and "critical"
     default: "info"
     type: string
   base_dn:
-    description: base DN
+    description: The base DN
     default: "dc=glauth,dc=com"
+    type: string
+  hostname:
+    description: The hostname of the LDAP server
+    default: "ldap.canonical.com"
     type: string

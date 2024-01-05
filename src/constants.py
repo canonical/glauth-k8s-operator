@@ -2,6 +2,7 @@
 # See LICENSE file for licensing details.
 
 from pathlib import PurePath
+from string import Template
 
 DATABASE_INTEGRATION_NAME = "pg-database"
 LOKI_API_PUSH_INTEGRATION_NAME = "logging"
@@ -18,3 +19,7 @@ LOG_FILE = LOG_DIR / "glauth.log"
 
 WORKLOAD_CONTAINER = "glauth"
 WORKLOAD_SERVICE = "glauth"
+
+DEFAULT_UID = 5001
+DEFAULT_GID = 5501
+POSTGRESQL_DSN_TEMPLATE = Template("postgresql+psycopg://$username:$password@$endpoint/$database")

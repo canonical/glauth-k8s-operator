@@ -2,6 +2,7 @@
 # See LICENSE file for licensing details.
 
 import logging
+from typing import Optional
 
 from lightkube import Client
 from lightkube.core.client import AllNamespacedResource
@@ -34,7 +35,10 @@ class ConfigMapResource:
         except ApiError as e:
             logging.error(f"Error fetching ConfigMap: {e}")
 
-    def create(self) -> None:
+    def create(self, data: Optional[dict] = None) -> None:
+        if self.get():
+            return
+
         cm = ConfigMap(
             apiVersion="v1",
             kind="ConfigMap",
@@ -44,6 +48,7 @@ class ConfigMapResource:
                     "app.kubernetes.io/managed-by": "juju",
                 },
             ),
+            data=data,
         )
 
         try:

@@ -36,3 +36,7 @@ provides:
     description: |
       Forwards the built-in grafana dashboard(s) for monitoring GLAuth.
     interface: grafana_dashboard
+  ldap:
+    description: |
+      Provides LDAP configuration data
+    interface: ldap
