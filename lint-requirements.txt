@@ -1,0 +1,4 @@
+black
+codespell
+pre-commit
+ruff

@@ -1,0 +1,57 @@
+# Copyright 2023 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+name: glauth-k8s
+
+description: |
+  Kubernetes Charmed Glauth Operator
+
+summary: |
+  LDAP authentication provider
+
+docs: https://discourse.charmhub.io/t/13946
+
+containers:
+  glauth:
+    resource: oci-image
+
+resources:
+  oci-image:
+    type: oci-image
+    description: GLAuth oci-image
+    upstream-source: ghcr.io/canonical/glauth:2.3.1
+
+requires:
+  pg-database:
+    interface: postgresql_client
+    optional: false
+    limit: 1
+  logging:
+    interface: loki_push_api
+    optional: true
+  certificates:
+    interface: tls-certificates
+    limit: 1
+    optional: true
+
+provides:
+  metrics-endpoint:
+    description: |
+      Provides application metrics to COS Prometheus instance.
+    interface: prometheus_scrape
+  grafana-dashboard:
+    description: |
+      Forwards the built-in grafana dashboard(s) for monitoring GLAuth.
+    interface: grafana_dashboard
+  ldap:
+    description: |
+      Provides LDAP configuration data
+    interface: ldap
+  glauth-auxiliary:
+    description: |
+      Provides auxiliary data for glauth-utils charmed operator.
+    interface: glauth_auxiliary
+  send-ca-cert:
+    description: |
+      Transfer certificates to client charmed operators.
+    interface: certificate_transfer

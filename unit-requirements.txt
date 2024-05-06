@@ -1,0 +1,6 @@
+-r requirements.txt
+coverage[toml]
+cryptography
+jsonschema
+pytest
+pytest-mock
