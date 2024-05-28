@@ -9,7 +9,7 @@ repos:
     - id: requirements-txt-fixer
     - id: trailing-whitespace
 - repo: https://github.com/codespell-project/codespell
-  rev: v2.2.6
+  rev: v2.3.0
   hooks:
   - id: codespell
     additional_dependencies:
@@ -26,7 +26,7 @@ repos:
       args: [--fix, --exit-non-zero-on-fix]
     - id: ruff-format
 - repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v1.9.0
+  rev: v1.10.0
   hooks:
     - id: mypy
       args: ["--config-file", "pyproject.toml"]
@@ -39,10 +39,10 @@ repos:
       stages: [commit-msg]
       args: [--strict]
 - repo: https://github.com/igorshubovych/markdownlint-cli
-  rev: v0.39.0
+  rev: v0.41.0
   hooks:
   - id: markdownlint
 - repo: https://github.com/renovatebot/pre-commit-hooks
-  rev: 37.353.0
+  rev: 37.381.2
   hooks:
     - id: renovate-config-validator
