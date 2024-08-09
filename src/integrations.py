@@ -6,7 +6,7 @@ import logging
 import subprocess
 from contextlib import suppress
 from dataclasses import dataclass
-from secrets import token_bytes
+from secrets import token_hex
 from typing import Optional
 
 from charms.certificate_transfer_interface.v0.certificate_transfer import (
@@ -36,11 +36,23 @@ from exceptions import CertificatesError
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
+@dataclass
 class BindAccount:
     cn: str
     ou: str
-    password: str
+    password: Optional[str]
+
+
+def _reset_account_password(dsn: str, user_name: str) -> str:
+    password = token_hex()
+    password_sha256 = hashlib.sha256(password.encode()).hexdigest()
+    with Operation(dsn) as op:
+        if not (user := op.select(User, User.name == user_name)):
+            raise RuntimeError(f"No user '{user_name}' found")
+        user.password_sha256 = password_sha256
+        op.add(user)
+
+    return password
 
 
 def _create_bind_account(dsn: str, user_name: str, group_name: str) -> BindAccount:
@@ -49,16 +61,16 @@ def _create_bind_account(dsn: str, user_name: str, group_name: str) -> BindAccou
             group = Group(name=group_name, gid_number=DEFAULT_GID)
             op.add(group)
 
-        if not (user := op.select(User, User.name == user_name)):
-            new_password = hashlib.sha256(token_bytes()).hexdigest()
+        user = op.select(User, User.name == user_name)
+        password = token_hex() if not user else ""
+        if not user:
             user = User(
                 name=user_name,
                 uid_number=DEFAULT_UID,
                 gid_number=DEFAULT_GID,
-                password_sha256=new_password,
+                password_sha256=hashlib.sha256(password.encode()).hexdigest(),
             )
             op.add(user)
-        password = user.password_bcrypt or user.password_sha256
 
         if not op.select(Capability, Capability.user_id == DEFAULT_UID):
             capability = Capability(user_id=DEFAULT_UID)
@@ -72,9 +84,14 @@ class LdapIntegration:
         self._charm = charm
         self._bind_account: Optional[BindAccount] = None
 
-    def load_bind_account(self, user: str, group: str) -> None:
+    def load_bind_account(self, user: str, group: str, relation_id: int) -> None:
         database_config = DatabaseConfig.load(self._charm.database_requirer)
         self._bind_account = _create_bind_account(database_config.dsn, user, group)
+        if not self._bind_account.password:
+            password = self._charm.ldap_provider.get_bind_password(relation_id)
+            if not password:
+                password = _reset_account_password(database_config.dsn, user)
+            self._bind_account.password = password
 
     @property
     def ldap_url(self) -> str:
@@ -105,7 +122,7 @@ class LdapIntegration:
             url=self.ldap_url,
             base_dn=self.base_dn,
             bind_dn=f"cn={self._bind_account.cn},ou={self._bind_account.ou},{self.base_dn}",
-            bind_password_secret=self._bind_account.password,
+            bind_password=self._bind_account.password,
             auth_method="simple",
             starttls=self.starttls_enabled,
         )

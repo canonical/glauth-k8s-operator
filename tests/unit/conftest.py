@@ -30,7 +30,8 @@ LDAP_PROVIDER_DATA = LdapProviderData(
     url="ldap://ldap.glauth.com",
     base_dn="dc=glauth,dc=com",
     bind_dn="cn=user,ou=group,dc=glauth,dc=com",
-    bind_password_secret="password",
+    bind_password="password",
+    bind_password_secret="secret-id",
     auth_method="simple",
     starttls=True,
 )

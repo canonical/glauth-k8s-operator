@@ -15,22 +15,10 @@ from kubernetes_resource import KubernetesResourceError
 
 
 class TestInstallEvent:
-    def test_on_install_non_leader_unit(
-        self, harness: Harness, mocked_configmap: MagicMock, mocked_statefulset: MagicMock
-    ) -> None:
-        harness.set_leader(False)
-        harness.charm.on.install.emit()
-
-        mocked_configmap.create.assert_not_called()
-        mocked_statefulset.patch.assert_not_called()
-
-    def test_on_install(
-        self, harness: Harness, mocked_configmap: MagicMock, mocked_statefulset: MagicMock
-    ) -> None:
+    def test_on_install(self, harness: Harness, mocked_configmap: MagicMock) -> None:
         harness.charm.on.install.emit()
 
         mocked_configmap.create.assert_called_once()
-        mocked_statefulset.patch.assert_called_once()
 
     def test_configmap_creation_failed(self, harness: Harness, mocker: MockerFixture) -> None:
         mocked = mocker.patch("charm.ConfigMapResource.create")
@@ -62,6 +50,7 @@ class TestPebbleReadyEvent:
         self,
         harness: Harness,
         database_relation: int,
+        mocked_statefulset: MagicMock,
         certificates_relation: int,
     ) -> None:
         harness.set_can_connect(WORKLOAD_CONTAINER, False)
@@ -69,16 +58,19 @@ class TestPebbleReadyEvent:
         harness.charm.on.glauth_pebble_ready.emit(container)
 
         assert isinstance(harness.model.unit.status, WaitingStatus)
+        mocked_statefulset.patch.assert_called_once()
 
     def test_when_missing_database_relation(
         self,
         harness: Harness,
+        mocked_statefulset: MagicMock,
         certificates_relation: int,
     ) -> None:
         container = harness.model.unit.get_container(WORKLOAD_CONTAINER)
         harness.charm.on.glauth_pebble_ready.emit(container)
 
         assert isinstance(harness.model.unit.status, BlockedStatus)
+        mocked_statefulset.patch.assert_called_once()
 
     def test_when_missing_certificates_relation(
         self,
@@ -242,10 +234,7 @@ class TestLdapRequestedEvent:
         assert isinstance(harness.model.unit.status, ActiveStatus)
 
         actual = dict(harness.get_relation_data(ldap_relation, harness.model.app.name))
-        secret_id = actual.get("bind_password_secret")
-        secret_content = harness.model.get_secret(id=secret_id).get_content()
-        actual["bind_password_secret"] = secret_content.get("password")
-        assert LDAP_PROVIDER_DATA.model_dump() == actual
+        assert LDAP_PROVIDER_DATA.model_dump(by_alias=True) == actual
 
 
 class TestLdapAuxiliaryRequestedEvent:

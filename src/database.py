@@ -4,14 +4,7 @@
 import logging
 from typing import Any, Optional, Type
 
-from sqlalchemy import (
-    ColumnExpressionArgument,
-    Integer,
-    ScalarResult,
-    String,
-    create_engine,
-    select,
-)
+from sqlalchemy import ColumnExpressionArgument, Integer, String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 logger = logging.getLogger(__name__)
@@ -70,9 +63,7 @@ class Operation:
 
         self._session.close()
 
-    def select(
-        self, table: Type[Base], *criteria: ColumnExpressionArgument
-    ) -> Optional[ScalarResult]:
+    def select(self, table: Type[Base], *criteria: ColumnExpressionArgument) -> Optional[Base]:
         return self._session.scalars(select(table).filter(*criteria)).first()
 
     def add(self, entity: Base) -> None:

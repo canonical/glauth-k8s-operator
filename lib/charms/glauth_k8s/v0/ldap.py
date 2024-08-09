@@ -139,6 +139,7 @@ from ops.model import Relation, SecretNotFoundError
 from pydantic import (
     BaseModel,
     ConfigDict,
+    Field,
     StrictBool,
     ValidationError,
     field_serializer,
@@ -153,7 +154,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 3
+LIBPATCH = 4
 
 PYDEPS = ["pydantic~=2.5.3"]
 
@@ -208,6 +209,16 @@ class Secret:
 
         return Secret(secret)
 
+    @classmethod
+    def create_or_update(cls, charm: CharmBase, label: str, content: dict[str, str]) -> "Secret":
+        try:
+            secret = charm.model.get_secret(label=label)
+            secret.set_content(content=content)
+        except SecretNotFoundError:
+            secret = charm.app.add_secret(label=label, content=content)
+
+        return Secret(secret)
+
     def grant(self, relation: Relation) -> None:
         self._secret.grant(relation)
 
@@ -216,11 +227,9 @@ class Secret:
 
 
 class LdapProviderBaseData(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    url: str
-    base_dn: str
-    starttls: StrictBool
+    url: str = Field(frozen=True)
+    base_dn: str = Field(frozen=True)
+    starttls: StrictBool = Field(frozen=True)
 
     @field_validator("url")
     @classmethod
@@ -244,9 +253,10 @@ class LdapProviderBaseData(BaseModel):
 
 
 class LdapProviderData(LdapProviderBaseData):
-    bind_dn: str
-    bind_password_secret: str
-    auth_method: Literal["simple"]
+    bind_dn: str = Field(frozen=True)
+    bind_password: str = Field(exclude=True)
+    bind_password_secret: Optional[str] = None
+    auth_method: Literal["simple"] = Field(frozen=True)
 
 
 class LdapRequirerData(BaseModel):
@@ -320,28 +330,38 @@ class LdapProvider(Object):
         )
         secret.remove()
 
+    def get_bind_password(self, relation_id: int) -> Optional[str]:
+        """Retrieve the bind account password for a given integration."""
+        try:
+            secret = self.charm.model.get_secret(
+                label=BIND_ACCOUNT_SECRET_LABEL_TEMPLATE.substitute(relation_id=relation_id)
+            )
+        except SecretNotFoundError:
+            return None
+        return secret.get_content().get("password")
+
     def update_relations_app_data(
-        self, /, data: Optional[LdapProviderBaseData] = None, relation_id: Optional[int] = None
+        self,
+        data: Union[LdapProviderBaseData, LdapProviderData],
+        /,
+        relation_id: Optional[int] = None,
     ) -> None:
         """An API for the provider charm to provide the LDAP related information."""
-        if data is None:
-            return
-
         if not (relations := self.charm.model.relations.get(self._relation_name)):
             return
 
-        if relation_id is not None:
+        if relation_id is not None and isinstance(data, LdapProviderData):
             relations = [relation for relation in relations if relation.id == relation_id]
-            secret = Secret.load(
+            secret = Secret.create_or_update(
                 self.charm,
                 BIND_ACCOUNT_SECRET_LABEL_TEMPLATE.substitute(relation_id=relation_id),
-                content={"password": data.bind_password_secret},
+                {"password": data.bind_password},
             )
             secret.grant(relations[0])
-            data = data.model_copy(update={"bind_password_secret": secret.uri})
+            data.bind_password_secret = secret.uri
 
         for relation in relations:
-            _update_relation_app_databag(self.charm, relation, data.model_dump())  # type: ignore[union-attr]
+            _update_relation_app_databag(self.charm, relation, data.model_dump())
 
 
 class LdapRequirer(Object):
@@ -407,5 +427,8 @@ class LdapRequirer(Object):
         if not relation:
             return None
 
-        provider_data = relation.data.get(relation.app)
+        provider_data = dict(relation.data.get(relation.app))
+        if secret_id := provider_data.get("bind_password_secret"):
+            secret = self.charm.model.get_secret(id=secret_id)
+            provider_data["bind_password"] = secret.get_content().get("password")
         return LdapProviderData(**provider_data) if provider_data else None

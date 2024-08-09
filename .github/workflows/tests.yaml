@@ -32,8 +32,8 @@ jobs:
         with:
           provider: microk8s
           channel: 1.28-strict/stable
-          juju-channel: 3.2
-          bootstrap-options: '--agent-version=3.2.0'
+          juju-channel: 3.4
+          bootstrap-options: '--agent-version=3.4.0'
 
       - name: Run integration tests
         run: tox -e integration -- --model testing
@@ -47,7 +47,7 @@ jobs:
         if: failure()
 
       - name: Get juju logs
-        run: juju debug-log --replay --include unit-glauth-k8s-0
+        run: juju debug-log --replay --include glauth-k8s
         if: failure()
 
       - name: Get GLAuth container logs
