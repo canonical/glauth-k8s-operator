@@ -8,7 +8,7 @@ import subprocess
 from contextlib import suppress
 from dataclasses import dataclass
 from secrets import token_hex
-from typing import Optional
+from typing import List, Optional
 
 from charms.certificate_transfer_interface.v0.certificate_transfer import (
     CertificateTransferProvides,
@@ -113,9 +113,12 @@ class LdapIntegration:
         )
 
     @property
-    def ldap_url(self) -> str:
-        hostname = self._charm.config.get("hostname") or socket.getfqdn()
-        return f"ldap://{hostname}:{GLAUTH_LDAP_PORT}"
+    def ldap_url(self) -> List[str]:
+        if ingress := self._charm.ingress_per_unit.urls:
+            return [f"ldap://{url}" for url in ingress.values()]
+        else:
+            url = self._charm.config.get("hostname") or socket.getfqdn()
+            return [f"ldap://{url}:{GLAUTH_LDAP_PORT}"]
 
     @property
     def base_dn(self) -> str:
@@ -128,7 +131,7 @@ class LdapIntegration:
     @property
     def provider_base_data(self) -> LdapProviderBaseData:
         return LdapProviderBaseData(
-            urls=[self.ldap_url],
+            urls=self.ldap_url,
             base_dn=self.base_dn,
             starttls=self.starttls_enabled,
         )
@@ -139,7 +142,7 @@ class LdapIntegration:
             return None
 
         return LdapProviderData(
-            urls=[self.ldap_url],
+            urls=self.ldap_url,
             base_dn=self.base_dn,
             bind_dn=f"cn={self._bind_account.cn},ou={self._bind_account.ou},{self.base_dn}",
             bind_password=self._bind_account.password,
