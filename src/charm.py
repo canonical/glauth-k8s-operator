@@ -26,6 +26,7 @@ from charms.loki_k8s.v1.loki_push_api import LogForwarder
 from charms.observability_libs.v0.kubernetes_service_patch import KubernetesServicePatch
 from charms.observability_libs.v1.cert_handler import CertChanged
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
+from charms.traefik_k8s.v1.ingress_per_unit import IngressPerUnitRequirer
 from lightkube import Client
 from ops.charm import (
     CharmBase,
@@ -95,6 +96,13 @@ class GLAuthCharm(CharmBase):
             relation_name=DATABASE_INTEGRATION_NAME,
             database_name=self._db_name,
             extra_user_roles="SUPERUSER",
+        )
+
+        self.ingress_per_unit = IngressPerUnitRequirer(
+            self,
+            "ingress",
+            port=GLAUTH_LDAP_PORT,
+            mode="tcp",
         )
 
         self.ldap_provider = LdapProvider(self)

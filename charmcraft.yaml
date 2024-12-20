@@ -28,6 +28,10 @@ requires:
     interface: postgresql_client
     optional: false
     limit: 1
+  ingress:
+    interface: ingress_per_unit
+    limit: 1
+    optional: true
   logging:
     interface: loki_push_api
     optional: true
