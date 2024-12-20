@@ -78,6 +78,7 @@ class StartTLSConfig:
 @dataclass
 class ConfigFile:
     base_dn: Optional[str] = None
+    anonymousdse_enabled: bool = False
     database_config: Optional[DatabaseConfig] = None
     starttls_config: Optional[StartTLSConfig] = None
     ldap_servers_config: Optional[LdapServerConfig] = None
@@ -95,6 +96,7 @@ class ConfigFile:
         starttls_config = asdict(self.starttls_config) if self.starttls_config else None
         rendered = template.render(
             base_dn=self.base_dn,
+            anonymousdse_enabled=self.anonymousdse_enabled,
             database=database_config,
             ldap_servers=ldap_servers_config,
             starttls=starttls_config,

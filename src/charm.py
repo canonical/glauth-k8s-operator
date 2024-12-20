@@ -158,6 +158,7 @@ class GLAuthCharm(CharmBase):
 
         self.config_file = ConfigFile(
             base_dn=self.config.get("base_dn"),
+            anonymousdse_enabled=self.config.get("anonymousdse_enabled"),
             starttls_config=StartTLSConfig.load(self.config),
         )
         self._ldap_integration = LdapIntegration(self)
@@ -245,6 +246,7 @@ class GLAuthCharm(CharmBase):
 
     def _on_config_changed(self, event: ConfigChangedEvent) -> None:
         self.config_file.base_dn = self.config.get("base_dn")
+        self.config_file.anonymousdse_enabled = self.config.get("anonymousdse_enabled")
         self._handle_event_update(event)
         self.ldap_provider.update_relations_app_data(self._ldap_integration.provider_base_data)
 

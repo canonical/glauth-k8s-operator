@@ -24,6 +24,7 @@ structuredlog = true
   pluginhandler = "NewPostgresHandler"
   baseDN = "{{ base_dn }}"
   database = "postgres://{{ database.get('username') }}:{{ database.get('password') }}@{{ database.get('endpoint') }}/{{ database.get('database') }}?sslmode=disable"
+  anonymousdse = {{ "true" if anonymousdse_enabled else "false" }}
 {% endif %}
 
 [behaviors]

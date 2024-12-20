@@ -91,6 +91,16 @@ config:
         Enable the StartTLS support or not. DO NOT TURN IT OFF IN PRODUCTION.
       default: true
       type: boolean
+    anonymousdse_enabled:
+      description: |
+        Allow anonymous requests to the root directory server agent service entry (root DSE).
+
+        Anonymous request MUST be enabled for applications like SSSD to 
+        successfully bind to the Glauth server. Anonymous requests should
+        be disabled if not integrating with applications that must first
+        anonymously query the root DSE before binding to an LDAP server.
+      default: false
+      type: boolean
 
 
 base: ubuntu@22.04
