@@ -38,7 +38,7 @@ jobs:
           ref: ${{ inputs.source_branch }}
 
       - name: Select CharmHub channel
-        uses: canonical/charming-actions/channel@46fe0c6d63324b5f74ce0e65d6ab47051953cc48 # 2.6.2
+        uses: canonical/charming-actions/channel@1753e0803f70445132e92acd45c905aba6473225 # 2.7.0
         id: select-channel
         if: ${{ inputs.destination_channel == '' }}
 
@@ -56,7 +56,7 @@ jobs:
           channel: latest/stable
       
       - name: Upload charm to CharmHub
-        uses: canonical/charming-actions/upload-charm@46fe0c6d63324b5f74ce0e65d6ab47051953cc48 # 2.6.2
+        uses: canonical/charming-actions/upload-charm@1753e0803f70445132e92acd45c905aba6473225 # 2.7.0
         with:
           credentials: ${{ secrets.CHARMCRAFT_CREDENTIALS }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
