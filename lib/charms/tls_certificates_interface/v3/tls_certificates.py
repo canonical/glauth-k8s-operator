@@ -305,6 +305,7 @@ from ops.model import (
     ModelError,
     Relation,
     RelationDataContent,
+    Secret,
     SecretNotFoundError,
     Unit,
 )
@@ -317,7 +318,7 @@ LIBAPI = 3
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 17
+LIBPATCH = 24
 
 PYDEPS = ["cryptography", "jsonschema"]
 
@@ -467,19 +468,21 @@ class ProviderCertificate:
         Returns:
             str: JSON representation of the object
         """
-        return json.dumps({
-            "relation_id": self.relation_id,
-            "application_name": self.application_name,
-            "csr": self.csr,
-            "certificate": self.certificate,
-            "ca": self.ca,
-            "chain": self.chain,
-            "revoked": self.revoked,
-            "expiry_time": self.expiry_time.isoformat(),
-            "expiry_notification_time": self.expiry_notification_time.isoformat()
-            if self.expiry_notification_time
-            else None,
-        })
+        return json.dumps(
+            {
+                "relation_id": self.relation_id,
+                "application_name": self.application_name,
+                "csr": self.csr,
+                "certificate": self.certificate,
+                "ca": self.ca,
+                "chain": self.chain,
+                "revoked": self.revoked,
+                "expiry_time": self.expiry_time.isoformat(),
+                "expiry_notification_time": self.expiry_notification_time.isoformat()
+                if self.expiry_notification_time
+                else None,
+            }
+        )
 
 
 class CertificateAvailableEvent(EventBase):
@@ -523,7 +526,7 @@ class CertificateAvailableEvent(EventBase):
 class CertificateExpiringEvent(EventBase):
     """Charm Event triggered when a TLS certificate is almost expired."""
 
-    def __init__(self, handle, certificate: str, expiry: str):
+    def __init__(self, handle: Handle, certificate: str, expiry: str):
         """CertificateExpiringEvent.
 
         Args:
@@ -772,10 +775,12 @@ def generate_ca(
     private_key_object = serialization.load_pem_private_key(
         private_key, password=private_key_password
     )
-    subject_name = x509.Name([
-        x509.NameAttribute(x509.NameOID.COUNTRY_NAME, country),
-        x509.NameAttribute(x509.NameOID.COMMON_NAME, subject),
-    ])
+    subject_name = x509.Name(
+        [
+            x509.NameAttribute(x509.NameOID.COUNTRY_NAME, country),
+            x509.NameAttribute(x509.NameOID.COMMON_NAME, subject),
+        ]
+    )
     subject_identifier_object = x509.SubjectKeyIdentifier.from_public_key(
         private_key_object.public_key()  # type: ignore[arg-type]
     )
@@ -862,16 +867,18 @@ def get_certificate_extensions(
     sans.extend(san_alt_names)
     try:
         loaded_san_ext = csr.extensions.get_extension_for_class(x509.SubjectAlternativeName)
-        sans.extend([
-            x509.DNSName(name) for name in loaded_san_ext.value.get_values_for_type(x509.DNSName)
-        ])
-        sans.extend([
-            x509.IPAddress(ip) for ip in loaded_san_ext.value.get_values_for_type(x509.IPAddress)
-        ])
-        sans.extend([
-            x509.RegisteredID(oid)
-            for oid in loaded_san_ext.value.get_values_for_type(x509.RegisteredID)
-        ])
+        sans.extend(
+            [x509.DNSName(name) for name in loaded_san_ext.value.get_values_for_type(x509.DNSName)]
+        )
+        sans.extend(
+            [x509.IPAddress(ip) for ip in loaded_san_ext.value.get_values_for_type(x509.IPAddress)]
+        )
+        sans.extend(
+            [
+                x509.RegisteredID(oid)
+                for oid in loaded_san_ext.value.get_values_for_type(x509.RegisteredID)
+            ]
+        )
     except x509.ExtensionNotFound:
         pass
 
@@ -1442,18 +1449,31 @@ class TLSCertificatesProvidesV3(Object):
         Returns:
             None
         """
-        provider_certificates = self.get_provider_certificates(relation_id)
-        requirer_csrs = self.get_requirer_csrs(relation_id)
+        provider_certificates = self.get_unsolicited_certificates(relation_id=relation_id)
+        for provider_certificate in provider_certificates:
+            self.on.certificate_revocation_request.emit(
+                certificate=provider_certificate.certificate,
+                certificate_signing_request=provider_certificate.csr,
+                ca=provider_certificate.ca,
+                chain=provider_certificate.chain,
+            )
+            self.remove_certificate(certificate=provider_certificate.certificate)
+
+    def get_unsolicited_certificates(
+        self, relation_id: Optional[int] = None
+    ) -> List[ProviderCertificate]:
+        """Return provider certificates for which no certificate requests exists.
+
+        Those certificates should be revoked.
+        """
+        unsolicited_certificates: List[ProviderCertificate] = []
+        provider_certificates = self.get_provider_certificates(relation_id=relation_id)
+        requirer_csrs = self.get_requirer_csrs(relation_id=relation_id)
         list_of_csrs = [csr.csr for csr in requirer_csrs]
         for certificate in provider_certificates:
             if certificate.csr not in list_of_csrs:
-                self.on.certificate_revocation_request.emit(
-                    certificate=certificate.certificate,
-                    certificate_signing_request=certificate.csr,
-                    ca=certificate.ca,
-                    chain=certificate.chain,
-                )
-                self.remove_certificate(certificate=certificate.certificate)
+                unsolicited_certificates.append(certificate)
+        return unsolicited_certificates
 
     def get_outstanding_certificate_requests(
         self, relation_id: Optional[int] = None
@@ -1882,14 +1902,23 @@ class TLSCertificatesRequiresV3(Object):
                     )
                 else:
                     try:
+                        secret = self.model.get_secret(label=f"{LIBID}-{csr_in_sha256_hex}")
                         logger.debug(
                             "Setting secret with label %s", f"{LIBID}-{csr_in_sha256_hex}"
                         )
-                        secret = self.model.get_secret(label=f"{LIBID}-{csr_in_sha256_hex}")
-                        secret.set_content({
-                            "certificate": certificate.certificate,
-                            "csr": certificate.csr,
-                        })
+                        # Juju < 3.6 will create a new revision even if the content is the same
+                        if (
+                            secret.get_content(refresh=True).get("certificate", "")
+                            == certificate.certificate
+                        ):
+                            logger.debug(
+                                "Secret %s with correct certificate already exists",
+                                f"{LIBID}-{csr_in_sha256_hex}",
+                            )
+                            continue
+                        secret.set_content(
+                            {"certificate": certificate.certificate, "csr": certificate.csr}
+                        )
                         secret.set_info(
                             expire=self._get_next_secret_expiry_time(certificate),
                         )
@@ -1960,17 +1989,26 @@ class TLSCertificatesRequiresV3(Object):
         Args:
             event (SecretExpiredEvent): Juju event
         """
-        if not event.secret.label or not event.secret.label.startswith(f"{LIBID}-"):
+        csr = self._get_csr_from_secret(event.secret)
+        if not csr:
+            logger.error("Failed to get CSR from secret %s", event.secret.label)
             return
-        csr = event.secret.get_content()["csr"]
         provider_certificate = self._find_certificate_in_relation_data(csr)
         if not provider_certificate:
             # A secret expired but we did not find matching certificate. Cleaning up
+            logger.warning(
+                "Failed to find matching certificate for csr, cleaning up secret %s",
+                event.secret.label,
+            )
             event.secret.remove_all_revisions()
             return
 
         if not provider_certificate.expiry_time:
             # A secret expired but matching certificate is invalid. Cleaning up
+            logger.warning(
+                "Certificate matching csr is invalid, cleaning up secret %s",
+                event.secret.label,
+            )
             event.secret.remove_all_revisions()
             return
 
@@ -2002,3 +2040,22 @@ class TLSCertificatesRequiresV3(Object):
                 continue
             return provider_certificate
         return None
+
+    def _get_csr_from_secret(self, secret: Secret) -> Union[str, None]:
+        """Extract the CSR from the secret label or content.
+
+        This function is a workaround to maintain backwards compatibility
+        and fix the issue reported in
+        https://github.com/canonical/tls-certificates-interface/issues/228
+        """
+        try:
+            content = secret.get_content(refresh=True)
+        except SecretNotFoundError:
+            return None
+        if not (csr := content.get("csr", None)):
+            # In versions <14 of the Lib we were storing the CSR in the label of the secret
+            # The CSR now is stored int the content of the secret, which was a breaking change
+            # Here we get the CSR if the secret was created by an app using libpatch 14 or lower
+            if secret.label and secret.label.startswith(f"{LIBID}-"):
+                csr = secret.label[len(f"{LIBID}-") :]
+        return csr
