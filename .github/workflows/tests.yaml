@@ -16,7 +16,7 @@ jobs:
         run: python -m pip install tox
 
       - name: Run tests
-        run: tox -e unit
+        run: tox -e unit,unit-pydantic-v1
 
   integration-test-microk8s:
     name: Integration tests (microk8s)
