@@ -117,8 +117,10 @@ async def unit_integration_data(ops_test: OpsTest) -> Callable:
 
 
 @pytest_asyncio.fixture
-async def ldap_integration_data(app_integration_data: Callable) -> Optional[dict]:
-    return await app_integration_data(GLAUTH_CLIENT_APP, "ldap")
+async def ldap_integration_data(
+    app_integration_data: Callable, ldap_client_app_name: str
+) -> Optional[dict]:
+    return await app_integration_data(ldap_client_app_name, "ldap")
 
 
 @pytest_asyncio.fixture
@@ -130,6 +132,7 @@ async def database_integration_data(ops_test: OpsTest, app_integration_data: Cal
         show_secrets=True,
     )
     db_credential = next(iter(db_credentials), None)
+    assert db_credential
     decoded_db_credentials = {
         field: b64decode(db_credential.value.data[field]).decode("utf-8")
         for field in ("username", "password")
