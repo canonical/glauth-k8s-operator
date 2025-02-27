@@ -4,7 +4,13 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from conftest import LDAP_AUXILIARY_APP, LDAP_CLIENT_APP, LDAP_PROVIDER_APP, LDAP_PROVIDER_DATA
+from conftest import (
+    LDAP_AUXILIARY_APP,
+    LDAP_CLIENT_APP,
+    LDAP_PROVIDER_APP,
+    LDAP_PROVIDER_DATA,
+    LDAPS_PROVIDER_DATA,
+)
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 from ops.testing import Harness
 from pytest_mock import MockerFixture
@@ -217,6 +223,21 @@ class TestConfigChangedEvent:
         assert service.is_running()
         assert isinstance(harness.model.unit.status, ActiveStatus)
 
+    def test_enable_ldaps_changed_event(
+        self,
+        harness: Harness,
+        certificates_relation: int,
+        database_resource: MagicMock,
+        mocked_tls_certificates: MagicMock,
+    ):
+        container = harness.model.unit.get_container(WORKLOAD_CONTAINER)
+
+        harness.update_config({"ldaps_enabled": True})
+
+        service = container.get_service(WORKLOAD_SERVICE)
+        assert service.is_running()
+        assert isinstance(harness.model.unit.status, ActiveStatus)
+
 
 class TestLdapRequestedEvent:
     def test_when_database_not_created(
@@ -251,6 +272,23 @@ class TestLdapRequestedEvent:
 
         actual = dict(harness.get_relation_data(ldap_relation, harness.model.app.name))
         assert LDAP_PROVIDER_DATA.model_dump() == actual
+
+    def test_when_ldaps_requested(
+        self,
+        harness: Harness,
+        mocked_tls_certificates: MagicMock,
+        certificates_relation: int,
+        database_resource: MagicMock,
+        mocked_ldaps_integration: MagicMock,
+        ldap_relation: int,
+        ldap_relation_data: MagicMock,
+    ) -> None:
+        assert isinstance(harness.model.unit.status, ActiveStatus)
+
+        harness.update_config({"ldaps_enabled": True})
+
+        actual = dict(harness.get_relation_data(ldap_relation, harness.model.app.name))
+        assert LDAPS_PROVIDER_DATA.model_dump() == actual
 
 
 class TestLdapReadyEvent:

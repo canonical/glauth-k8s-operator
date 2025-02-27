@@ -31,6 +31,7 @@ def harness() -> Generator:
 def provider_data() -> Dict[str, str]:
     return {
         "urls": '["ldap://path.to.glauth:3893"]',
+        "ldaps_urls": '["ldaps://path.to.glauth:3894"]',
         "base_dn": "dc=glauth,dc=com",
         "starttls": "true",
         "bind_dn": "cn=serviceuser,ou=svcaccts,dc=glauth,dc=com",

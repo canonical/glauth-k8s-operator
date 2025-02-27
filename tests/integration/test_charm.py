@@ -18,6 +18,7 @@ from conftest import (
     GLAUTH_IMAGE,
     GLAUTH_PROXY,
     INGRESS_APP,
+    LDAPS_INGRESS_APP,
     TRAEFIK_CHARM,
     extract_certificate_common_name,
     extract_certificate_sans,
@@ -49,6 +50,12 @@ async def test_build_and_deploy(ops_test: OpsTest) -> None:
             channel="latest/stable",
             trust=True,
         ),
+        ops_test.model.deploy(
+            TRAEFIK_CHARM,
+            application_name=LDAPS_INGRESS_APP,
+            channel="latest/stable",
+            trust=True,
+        ),
     )
 
     charm_path = await ops_test.build_charm(".")
@@ -56,7 +63,7 @@ async def test_build_and_deploy(ops_test: OpsTest) -> None:
         str(charm_path),
         resources={"oci-image": GLAUTH_IMAGE},
         application_name=GLAUTH_APP,
-        config={"starttls_enabled": True},
+        config={"starttls_enabled": True, "ldaps_enabled": True},
         trust=True,
         series="jammy",
     )
@@ -64,7 +71,7 @@ async def test_build_and_deploy(ops_test: OpsTest) -> None:
         str(charm_path),
         resources={"oci-image": GLAUTH_IMAGE},
         application_name=GLAUTH_PROXY,
-        config={"starttls_enabled": True},
+        config={"starttls_enabled": True, "ldaps_enabled": True},
         trust=True,
         series="jammy",
     )
@@ -74,6 +81,9 @@ async def test_build_and_deploy(ops_test: OpsTest) -> None:
     await ops_test.model.integrate(GLAUTH_APP, DB_APP)
     await ops_test.model.integrate(f"{GLAUTH_PROXY}:ldap-client", f"{GLAUTH_APP}:ldap")
     await ops_test.model.integrate(f"{GLAUTH_APP}:ingress", f"{INGRESS_APP}:ingress-per-unit")
+    await ops_test.model.integrate(
+        f"{GLAUTH_APP}:ldaps-ingress", f"{LDAPS_INGRESS_APP}:ingress-per-unit"
+    )
 
     await ops_test.model.wait_for_idle(
         apps=[
@@ -82,6 +92,7 @@ async def test_build_and_deploy(ops_test: OpsTest) -> None:
             GLAUTH_APP,
             GLAUTH_PROXY,
             INGRESS_APP,
+            LDAPS_INGRESS_APP,
         ],
         status="active",
         raise_on_blocked=False,
@@ -103,10 +114,15 @@ async def test_ingress_per_unit_integration(ingress_url: Optional[str]) -> None:
     assert ingress_url, "Ingress url not found in the ingress-per-unit integration"
 
 
+async def test_ldaps_ingress_per_unit_integration(ldaps_ingress_url: Optional[str]) -> None:
+    assert ldaps_ingress_url, "LDAPS Ingress url not found in the ingress-per-unit integration"
+
+
 async def test_certification_integration(
     ops_test: OpsTest,
     certificate_integration_data: Optional[dict],
     ingress_ip: Optional[str],
+    ldaps_ingress_ip: Optional[str],
 ) -> None:
     assert certificate_integration_data
     certificates = json.loads(certificate_integration_data["certificates"])
@@ -116,6 +132,7 @@ async def test_certification_integration(
         == extract_certificate_common_name(certificate)
     )
     assert ingress_ip in extract_certificate_sans(certificate)
+    assert ldaps_ingress_ip in extract_certificate_sans(certificate)
 
 
 async def test_ldap_client_integration(
@@ -198,6 +215,7 @@ class GlauthClientTestSuite:
         ops_test: OpsTest,
         unit_integration_data: Callable,
         ingress_ip: Optional[str],
+        ldaps_ingress_ip: Optional[str],
         ldap_client_app_name: str,
     ) -> None:
         await ops_test.model.integrate(
@@ -216,14 +234,14 @@ class GlauthClientTestSuite:
             GLAUTH_APP,
             "send-ca-cert",
         )
-        assert (
-            certificate_transfer_integration_data
-        ), "Certificate transfer integration data is empty."
+        assert certificate_transfer_integration_data, (
+            "Certificate transfer integration data is empty."
+        )
 
         for key in ("ca", "certificate", "chain"):
-            assert (
-                key in certificate_transfer_integration_data
-            ), f"Missing '{key}' in certificate transfer integration data."
+            assert key in certificate_transfer_integration_data, (
+                f"Missing '{key}' in certificate transfer integration data."
+            )
 
         chain = certificate_transfer_integration_data["chain"]
         assert isinstance(json.loads(chain), list), "Invalid certificate chain."
@@ -234,6 +252,7 @@ class GlauthClientTestSuite:
             == extract_certificate_common_name(certificate)
         )
         assert ingress_ip in extract_certificate_sans(certificate)
+        assert ldaps_ingress_ip in extract_certificate_sans(certificate)
 
     @pytest.mark.skip(
         reason="glauth cannot scale up due to the traefik-k8s issue: https://github.com/canonical/traefik-k8s-operator/issues/406",
@@ -328,6 +347,20 @@ class GlauthClientTestSuite:
         res = await run_action(
             ldap_client_app_name, "rpc", method="starttls_operation", cn="hackers"
         )
+        ret = json.loads(res["return"])
+        assert ret, "Can't find user 'hackers'"
+        assert ret["dn"] == f"cn=hackers,ou=superheros,ou=users,{base_dn}"
+
+    async def test_ldaps_operation(
+        self,
+        ldap_configurations: Optional[tuple[str, ...]],
+        run_action: Callable,
+        ldap_client_app_name: str,
+    ) -> None:
+        assert ldap_configurations, "LDAP configuration should be ready"
+        base_dn, *_ = ldap_configurations
+
+        res = await run_action(ldap_client_app_name, "rpc", method="ldaps_operation", cn="hackers")
         ret = json.loads(res["return"])
         assert ret, "Can't find user 'hackers'"
         assert ret["dn"] == f"cn=hackers,ou=superheros,ou=users,{base_dn}"

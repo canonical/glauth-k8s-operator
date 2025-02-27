@@ -285,6 +285,7 @@ class Secret:
 
 class LdapProviderBaseData(BaseModel):
     urls: List[str] = Field(frozen=True)
+    ldaps_urls: List[str] = Field(frozen=True)
     base_dn: str = Field(frozen=True)
     starttls: StrictBool = Field(frozen=True)
 
@@ -302,7 +303,21 @@ class LdapProviderBaseData(BaseModel):
 
         return vs
 
-    @field_serializer("urls")
+    @field_validator("ldaps_urls", mode="before")
+    @classmethod
+    def validate_ldaps_urls(cls, vs: List[str] | str) -> List[str]:
+        if isinstance(vs, str):
+            vs = json.loads(vs)
+            if isinstance(vs, str):
+                vs = [vs]
+
+        for v in vs:
+            if not v.startswith("ldaps://"):
+                raise ValidationError.from_exception_data("Invalid LDAPS URL scheme.")
+
+        return vs
+
+    @field_serializer("urls", "ldaps_urls")
     def serialize_list(self, urls: List[str]) -> str:
         return str(json.dumps(urls))
 

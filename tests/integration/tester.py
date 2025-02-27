@@ -94,5 +94,31 @@ class AnyCharm(AnyCharmBase):
             return None
 
         return {"dn": entries[0]["dn"]}
+
+    def ldaps_operation(self, cn: str = "hackers") -> Optional[dict[str, str]]:
+        if not (peer := self.model.get_relation("peer-any")):
+            logger.error("The peer integration is not ready yet")
+            return None
+
+        ldap_data = peer.data[self.app]
+        ldap_uri = json.loads(ldap_data["ldaps_urls"])[0]
+        base_dn = ldap_data["base_dn"]
+        bind_dn = ldap_data["bind_dn"]
+        bind_password = ldap_data["bind_password"]
+
+        ldap_host, ldap_port = ldap_uri.rsplit(sep=":", maxsplit=1)
+        tls = Tls(validate=ssl.CERT_REQUIRED, version=ssl.PROTOCOL_TLSv1_2)
+        server = Server(host=ldap_host, port=int(ldap_port), use_ssl=True, tls=tls)
+        conn = Connection(server, user=bind_dn, password=bind_password)
+
+        conn.bind()
+        conn.search(base_dn, f"(cn={cn})", search_scope=SUBTREE)
+        entries = conn.response
+
+        if not (entries := conn.response):
+            logger.error("Can't find user '%s", cn)
+            return None
+
+        return {"dn": entries[0]["dn"]}
 """
 )

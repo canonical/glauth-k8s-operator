@@ -39,6 +39,10 @@ requires:
     interface: ingress_per_unit
     limit: 1
     optional: true
+  ldaps-ingress:
+    interface: ingress_per_unit
+    limit: 1
+    optional: true
   ldap-client:
     description: |
       Use another ldap server as a backend
@@ -83,6 +87,11 @@ config:
       description: |
         Enable the StartTLS support or not. DO NOT TURN IT OFF IN PRODUCTION.
       default: true
+      type: boolean
+    ldaps_enabled:
+      description: |
+        Enable LDAP over TLS (LDAPS) support.
+      default: false
       type: boolean
     anonymousdse_enabled:
       description: |
