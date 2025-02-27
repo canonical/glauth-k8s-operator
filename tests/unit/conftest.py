@@ -29,12 +29,14 @@ LDAP_PROVIDER_APP = "ldap-server"
 LDAP_CLIENT_APP = "ldap-client"
 LDAP_PROVIDER_DATA = LdapProviderData(
     urls=["ldap://ldap.glauth.com"],
+    ldaps_urls=[],
     base_dn="dc=glauth,dc=com",
     bind_dn="cn=user,ou=group,dc=glauth,dc=com",
     bind_password="password",
     bind_password_secret="secret-id",
     auth_method="simple",
     starttls=True,
+    ldap_over_tls=False,
 )
 
 LDAP_AUXILIARY_APP = "glauth-utils"
@@ -197,12 +199,14 @@ def ldap_client_resource(
         LDAP_PROVIDER_APP,
         {
             "urls": '["ldap://ldap.glauth.com"]',
+            "ldaps_urls": "[]",
             "base_dn": "dc=glauth,dc=com",
             "bind_dn": "cn=user,ou=group,dc=glauth,dc=com",
             "bind_password": "password",
             "bind_password_secret": secret_id,
             "auth_method": "simple",
             "starttls": "True",
+            "ldap_over_tls": "False",
         },
     )
 

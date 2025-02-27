@@ -120,6 +120,14 @@ class LdapIntegration:
         return [f"ldap://{url}:{GLAUTH_LDAP_PORT}"]
 
     @property
+    def ldaps_urls(self) -> List[str]:
+        if ingress := self._charm.ldaps_ingress_per_unit.urls:
+            return [f"ldaps://{url}" for url in ingress.values()]
+
+        url = f"{self._charm.app.name}.{self._charm.model.name}.svc.cluster.local"
+        return [f"ldaps://{url}:{GLAUTH_LDAP_PORT}"]
+
+    @property
     def base_dn(self) -> str:
         return self._charm.config.get("base_dn")
 
@@ -128,11 +136,17 @@ class LdapIntegration:
         return self._charm.config.get("starttls_enabled", True)
 
     @property
+    def ldap_over_tls_enabled(self) -> bool:
+        return self._charm.config.get("ldap_over_tls_enabled", True)
+
+    @property
     def provider_base_data(self) -> LdapProviderBaseData:
         return LdapProviderBaseData(
             urls=self.ldap_urls,
+            ldaps_urls=self.ldaps_urls,
             base_dn=self.base_dn,
             starttls=self.starttls_enabled,
+            ldap_over_tls=self.ldap_over_tls_enabled,
         )
 
     @property
@@ -142,11 +156,13 @@ class LdapIntegration:
 
         return LdapProviderData(
             urls=self.ldap_urls,
+            ldaps_urls=self.ldaps_urls,
             base_dn=self.base_dn,
             bind_dn=f"cn={self._bind_account.cn},ou={self._bind_account.ou},{self.base_dn}",
             bind_password=self._bind_account.password,
             auth_method="simple",
             starttls=self.starttls_enabled,
+            ldap_over_tls=self.ldap_over_tls_enabled,
         )
 
 
@@ -185,6 +201,10 @@ class CertificatesIntegration:
         if ingress := charm.ingress_per_unit.url:
             ingress_domain, *_ = ingress.rsplit(sep=":", maxsplit=1)
             sans.append(ingress_domain)
+
+        if ldaps_ingress := charm.ldaps_ingress_per_unit.url:
+            ldaps_ingress_domain, *_ = ldaps_ingress.rsplit(sep=":", maxsplit=1)
+            sans.append(ldaps_ingress_domain)
 
         self.cert_handler = CertHandler(
             charm,

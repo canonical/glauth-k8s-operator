@@ -76,11 +76,25 @@ class StartTLSConfig:
 
 
 @dataclass
+class LdapOverTLSConfig:
+    enabled: bool = True
+    tls_key: Path = SERVER_KEY
+    tls_cert: Path = SERVER_CERT
+
+    @classmethod
+    def load(cls, config: Mapping[str, Any]) -> "LdapOverTLSConfig":
+        return StartTLSConfig(
+            enabled=config.get("ldap_over_tls_enabled", True),
+        )
+
+
+@dataclass
 class ConfigFile:
     base_dn: Optional[str] = None
     anonymousdse_enabled: bool = False
     database_config: Optional[DatabaseConfig] = None
     starttls_config: Optional[StartTLSConfig] = None
+    ldap_over_tls_config: Optional[LdapOverTLSConfig] = None
     ldap_servers_config: Optional[LdapServerConfig] = None
 
     @property
@@ -94,12 +108,16 @@ class ConfigFile:
         database_config = asdict(self.database_config) if self.database_config else None
         ldap_servers_config = self.ldap_servers_config
         starttls_config = asdict(self.starttls_config) if self.starttls_config else None
+        ldap_over_tls_config = (
+            asdict(self.ldap_over_tls_config) if self.ldap_over_tls_config else None
+        )
         rendered = template.render(
             base_dn=self.base_dn,
             anonymousdse_enabled=self.anonymousdse_enabled,
             database=database_config,
             ldap_servers=ldap_servers_config,
             starttls=starttls_config,
+            ldap_over_tls=ldap_over_tls_config,
         )
         return rendered
 

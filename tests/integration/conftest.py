@@ -26,6 +26,7 @@ GLAUTH_APP = METADATA["name"]
 GLAUTH_IMAGE = METADATA["resources"]["oci-image"]["upstream-source"]
 GLAUTH_CLIENT_APP = "any-charm"
 INGRESS_APP = "ingress"
+LDAPS_INGRESS_APP = "ldaps-ingress"
 JUJU_SECRET_ID_REGEX = re.compile(r"secret:(?://[a-f0-9-]+/)?(?P<secret_id>[a-zA-Z0-9]+)")
 INGRESS_URL_REGEX = re.compile(r"url:\s*(?P<ingress_url>\d{1,3}(?:\.\d{1,3}){3}:\d+)")
 
@@ -152,6 +153,13 @@ async def ingress_per_unit_integration_data(app_integration_data: Callable) -> O
 
 
 @pytest_asyncio.fixture
+async def ldaps_ingress_per_unit_integration_data(
+    app_integration_data: Callable,
+) -> Optional[dict]:
+    return await app_integration_data(GLAUTH_APP, "ldaps-ingress")
+
+
+@pytest_asyncio.fixture
 async def ingress_url(ingress_per_unit_integration_data: Optional[dict]) -> Optional[str]:
     if not ingress_per_unit_integration_data:
         return None
@@ -164,11 +172,34 @@ async def ingress_url(ingress_per_unit_integration_data: Optional[dict]) -> Opti
 
 
 @pytest_asyncio.fixture
+async def ldaps_ingress_url(
+    ldaps_ingress_per_unit_integration_data: Optional[dict],
+) -> Optional[str]:
+    if not ldaps_ingress_per_unit_integration_data:
+        return None
+
+    ingress = ldaps_ingress_per_unit_integration_data["ingress"]
+    matched = INGRESS_URL_REGEX.search(ingress)
+    assert matched is not None, "ingress url not found in ingress per unit integration data"
+
+    return matched.group("ingress_url")
+
+
+@pytest_asyncio.fixture
 async def ingress_ip(ingress_url: Optional[str]) -> Optional[str]:
     if not ingress_url:
         return None
 
     ingress_ip, *_ = ingress_url.rsplit(sep=":", maxsplit=1)
+    return ingress_ip
+
+
+@pytest_asyncio.fixture
+async def ldaps_ingress_ip(ldaps_ingress_url: Optional[str]) -> Optional[str]:
+    if not ldaps_ingress_url:
+        return None
+
+    ingress_ip, *_ = ldaps_ingress_url.rsplit(sep=":", maxsplit=1)
     return ingress_ip
 
 
