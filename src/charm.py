@@ -306,8 +306,8 @@ class GLAuthCharm(CharmBase):
             data=self._auxiliary_integration.auxiliary_data,
         )
 
-    @wait_when(container_not_connected)
     @leader_unit
+    @wait_when(container_not_connected)
     def _on_ingress_changed(
         self, event: IngressPerUnitReadyForUnitEvent | IngressPerUnitRevokedForUnitEvent
     ) -> None:

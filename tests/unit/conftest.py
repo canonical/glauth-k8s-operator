@@ -121,7 +121,6 @@ def mocked_ldap_integration(mocker: MockerFixture, harness: Harness) -> MagicMoc
 @pytest.fixture
 def mocked_certificates_integration(mocker: MockerFixture, harness: Harness) -> MagicMock:
     mocked = mocker.patch("charm.CertificatesIntegration", autospec=True)
-    # mocked.cert_handler = harness.charm._certs_integration.cert_handler
     mocked.cert_requirer = harness.charm._certs_integration.cert_requirer
     harness.charm._certs_integration = mocked
     return mocked
