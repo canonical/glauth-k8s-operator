@@ -4,7 +4,16 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from conftest import LDAP_AUXILIARY_APP, LDAP_CLIENT_APP, LDAP_PROVIDER_APP, LDAP_PROVIDER_DATA
+from charms.tls_certificates_interface.v4.tls_certificates import (
+    Certificate,
+    CertificateSigningRequest,
+)
+from conftest import (
+    LDAP_AUXILIARY_APP,
+    LDAP_CLIENT_APP,
+    LDAP_PROVIDER_APP,
+    LDAP_PROVIDER_DATA,
+)
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 from ops.testing import Harness
 from pytest_mock import MockerFixture
@@ -303,9 +312,19 @@ class TestLdapAuxiliaryRequestedEvent:
 
 
 class TestCertChangedEvent:
-    def test_when_container_not_connected(self, harness: Harness) -> None:
+    def test_when_container_not_connected(
+        self,
+        harness: Harness,
+        csr: CertificateSigningRequest,
+        certificate: Certificate,
+    ) -> None:
         harness.set_can_connect(WORKLOAD_CONTAINER, False)
-        harness.charm._certs_integration.cert_handler.on.cert_changed.emit()
+        harness.charm._certs_integration.cert_requirer.on.certificate_available.emit(
+            certificate,
+            csr,
+            certificate,
+            [certificate],
+        )
 
         assert isinstance(harness.model.unit.status, WaitingStatus)
 
@@ -319,8 +338,15 @@ class TestCertChangedEvent:
         harness: Harness,
         mocked_certificates_integration: MagicMock,
         mocked_certificates_transfer_integration: MagicMock,
+        csr: CertificateSigningRequest,
+        certificate: Certificate,
     ) -> None:
-        harness.charm._certs_integration.cert_handler.on.cert_changed.emit()
+        harness.charm._certs_integration.cert_requirer.on.certificate_available.emit(
+            certificate,
+            csr,
+            certificate,
+            [certificate],
+        )
 
         mocked_certificates_integration.update_certificates.assert_called_once()
         mocked_certificates_transfer_integration.transfer_certificates.assert_not_called()
@@ -330,8 +356,15 @@ class TestCertChangedEvent:
         harness: Harness,
         mocked_certificates_integration: MagicMock,
         mocked_certificates_transfer_integration: MagicMock,
+        csr: CertificateSigningRequest,
+        certificate: Certificate,
     ) -> None:
-        harness.charm._certs_integration.cert_handler.on.cert_changed.emit()
+        harness.charm._certs_integration.cert_requirer.on.certificate_available.emit(
+            certificate,
+            csr,
+            certificate,
+            [certificate],
+        )
 
         mocked_certificates_integration.update_certificates.assert_called_once()
         mocked_certificates_transfer_integration.transfer_certificates.assert_called_once()
