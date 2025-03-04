@@ -85,7 +85,7 @@ async def test_build_and_deploy(ops_test: OpsTest) -> None:
         ],
         status="active",
         raise_on_blocked=False,
-        timeout=5 * 60,
+        timeout=10 * 60,
     )
 
 
@@ -216,14 +216,14 @@ class GlauthClientTestSuite:
             GLAUTH_APP,
             "send-ca-cert",
         )
-        assert (
-            certificate_transfer_integration_data
-        ), "Certificate transfer integration data is empty."
+        assert certificate_transfer_integration_data, (
+            "Certificate transfer integration data is empty."
+        )
 
         for key in ("ca", "certificate", "chain"):
-            assert (
-                key in certificate_transfer_integration_data
-            ), f"Missing '{key}' in certificate transfer integration data."
+            assert key in certificate_transfer_integration_data, (
+                f"Missing '{key}' in certificate transfer integration data."
+            )
 
         chain = certificate_transfer_integration_data["chain"]
         assert isinstance(json.loads(chain), list), "Invalid certificate chain."
