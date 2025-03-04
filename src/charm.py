@@ -45,16 +45,25 @@ from ops.charm import (
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
 from ops.pebble import ChangeError
 
-from configs import ConfigFile, DatabaseConfig, LdapServerConfig, StartTLSConfig, pebble_layer
+from configs import (
+    ConfigFile,
+    DatabaseConfig,
+    LdapsConfig,
+    LdapServerConfig,
+    StartTLSConfig,
+    pebble_layer,
+)
 from constants import (
     CERTIFICATES_INTEGRATION_NAME,
     CERTIFICATES_TRANSFER_INTEGRATION_NAME,
     DATABASE_INTEGRATION_NAME,
     GLAUTH_CONFIG_DIR,
     GLAUTH_LDAP_PORT,
+    GLAUTH_LDAPS_PORT,
     GRAFANA_DASHBOARD_INTEGRATION_NAME,
     INGRESS_PER_UNIT_INTEGRATION_NAME,
     LDAP_CLIENT_INTEGRATION_NAME,
+    LDAPS_INGRESS_PER_UNIT_INTEGRATION_NAME,
     LOKI_API_PUSH_INTEGRATION_NAME,
     PROMETHEUS_SCRAPE_INTEGRATION_NAME,
     WORKLOAD_CONTAINER,
@@ -114,6 +123,12 @@ class GLAuthCharm(CharmBase):
             port=GLAUTH_LDAP_PORT,
             mode="tcp",
         )
+        self.ldaps_ingress_per_unit = IngressPerUnitRequirer(
+            self,
+            LDAPS_INGRESS_PER_UNIT_INTEGRATION_NAME,
+            port=GLAUTH_LDAPS_PORT,
+            mode="tcp",
+        )
 
         self.ldap_provider = LdapProvider(self)
         self.framework.observe(
@@ -145,7 +160,9 @@ class GLAuthCharm(CharmBase):
             self._on_certificates_transfer_relation_joined,
         )
 
-        self.service_patcher = KubernetesServicePatch(self, [("ldap", GLAUTH_LDAP_PORT)])
+        self.service_patcher = KubernetesServicePatch(
+            self, [("ldap", GLAUTH_LDAP_PORT), ("ldaps", GLAUTH_LDAPS_PORT)]
+        )
 
         self._log_forwarder = LogForwarder(self, relation_name=LOKI_API_PUSH_INTEGRATION_NAME)
         self.metrics_endpoint = MetricsEndpointProvider(
@@ -168,10 +185,18 @@ class GLAuthCharm(CharmBase):
         self.framework.observe(self.ingress_per_unit.on.ready_for_unit, self._on_ingress_changed)
         self.framework.observe(self.ingress_per_unit.on.revoked_for_unit, self._on_ingress_changed)
 
+        self.framework.observe(
+            self.ldaps_ingress_per_unit.on.ready_for_unit, self._on_ingress_changed
+        )
+        self.framework.observe(
+            self.ldaps_ingress_per_unit.on.revoked_for_unit, self._on_ingress_changed
+        )
+
         self.config_file = ConfigFile(
             base_dn=self.config.get("base_dn"),
             anonymousdse_enabled=self.config.get("anonymousdse_enabled"),
             starttls_config=StartTLSConfig.load(self.config),
+            ldaps_config=LdapsConfig.load(self.config),
         )
         self._ldap_integration = LdapIntegration(self)
         self._auxiliary_integration = AuxiliaryIntegration(self)

@@ -29,6 +29,17 @@ LDAP_PROVIDER_APP = "ldap-server"
 LDAP_CLIENT_APP = "ldap-client"
 LDAP_PROVIDER_DATA = LdapProviderData(
     urls=["ldap://ldap.glauth.com"],
+    ldaps_urls=[],
+    base_dn="dc=glauth,dc=com",
+    bind_dn="cn=user,ou=group,dc=glauth,dc=com",
+    bind_password="password",
+    bind_password_secret="secret-id",
+    auth_method="simple",
+    starttls=True,
+)
+LDAPS_PROVIDER_DATA = LdapProviderData(
+    urls=["ldap://ldap.glauth.com"],
+    ldaps_urls=["ldaps://ldaps.glauth.com"],
     base_dn="dc=glauth,dc=com",
     bind_dn="cn=user,ou=group,dc=glauth,dc=com",
     bind_password="password",
@@ -105,6 +116,14 @@ def mocked_restart_glauth_service(mocker: MockerFixture, harness: Harness) -> Ca
 def mocked_ldap_integration(mocker: MockerFixture, harness: Harness) -> MagicMock:
     mocked = mocker.patch("charm.LdapIntegration", autospec=True)
     mocked.provider_data = LDAP_PROVIDER_DATA
+    harness.charm._ldap_integration = mocked
+    return mocked
+
+
+@pytest.fixture
+def mocked_ldaps_integration(mocker: MockerFixture, harness: Harness) -> MagicMock:
+    mocked = mocker.patch("charm.LdapIntegration", autospec=True)
+    mocked.provider_data = LDAPS_PROVIDER_DATA
     harness.charm._ldap_integration = mocked
     return mocked
 
@@ -197,12 +216,14 @@ def ldap_client_resource(
         LDAP_PROVIDER_APP,
         {
             "urls": '["ldap://ldap.glauth.com"]',
+            "ldaps_urls": "[]",
             "base_dn": "dc=glauth,dc=com",
             "bind_dn": "cn=user,ou=group,dc=glauth,dc=com",
             "bind_password": "password",
             "bind_password_secret": secret_id,
             "auth_method": "simple",
             "starttls": "True",
+            "ldaps": "False",
         },
     )
 

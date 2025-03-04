@@ -9,7 +9,11 @@ structuredlog = true
   tlsCertPath = "{{ starttls.tls_cert|default("/usr/local/share/ca-certificates/glauth.crt", true) }}"
 
 [ldaps]
-  enabled = false
+  enabled = {{ ldaps.enabled|tojson }}
+  listen = "0.0.0.0:3894"
+  key = "{{ starttls.tls_key|default("/etc/ssl/private/glauth.key", true) }}"
+  cert = "{{ starttls.tls_cert|default("/usr/local/share/ca-certificates/glauth.crt", true) }}"
+  
 
 {% if ldap_server %}
 [[backends]]
