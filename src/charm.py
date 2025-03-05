@@ -24,8 +24,8 @@ from charms.glauth_utils.v0.glauth_auxiliary import AuxiliaryProvider, Auxiliary
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.loki_k8s.v1.loki_push_api import LogForwarder
 from charms.observability_libs.v0.kubernetes_service_patch import KubernetesServicePatch
-from charms.observability_libs.v1.cert_handler import CertChanged
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
+from charms.tls_certificates_interface.v4.tls_certificates import CertificateAvailableEvent
 from charms.traefik_k8s.v1.ingress_per_unit import (
     IngressPerUnitReadyForUnitEvent,
     IngressPerUnitRequirer,
@@ -150,7 +150,7 @@ class GLAuthCharm(CharmBase):
 
         self._certs_integration = CertificatesIntegration(self)
         self.framework.observe(
-            self._certs_integration.cert_handler.on.cert_changed,
+            self._certs_integration.cert_requirer.on.certificate_available,
             self._on_cert_changed,
         )
 
@@ -331,29 +331,15 @@ class GLAuthCharm(CharmBase):
             data=self._auxiliary_integration.auxiliary_data,
         )
 
+    @leader_unit
     @wait_when(container_not_connected)
     def _on_ingress_changed(
         self, event: IngressPerUnitReadyForUnitEvent | IngressPerUnitRevokedForUnitEvent
     ) -> None:
-        if self.unit.is_leader():
-            self.ldap_provider.update_relations_app_data(self._ldap_integration.provider_base_data)
-
-        if not self._certs_integration.certs_ready():
-            return
-
-        try:
-            self._certs_integration.update_certificates()
-        except CertificatesError:
-            self.unit.status = BlockedStatus(
-                "Failed to update the TLS certificates, please check the logs"
-            )
-            return
-
-        self._handle_event_update(event)
-        self._certs_transfer_integration.transfer_certificates(self._certs_integration.cert_data)
+        self.ldap_provider.update_relations_app_data(self._ldap_integration.provider_base_data)
 
     @wait_when(container_not_connected)
-    def _on_cert_changed(self, event: CertChanged) -> None:
+    def _on_cert_changed(self, event: CertificateAvailableEvent) -> None:
         try:
             self._certs_integration.update_certificates()
         except CertificatesError:

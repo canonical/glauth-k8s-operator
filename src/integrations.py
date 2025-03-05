@@ -2,6 +2,7 @@
 # See LICENSE file for licensing details.
 
 import hashlib
+import ipaddress
 import logging
 import subprocess
 from contextlib import suppress
@@ -14,7 +15,12 @@ from charms.certificate_transfer_interface.v0.certificate_transfer import (
 )
 from charms.glauth_k8s.v0.ldap import LdapProviderBaseData, LdapProviderData
 from charms.glauth_utils.v0.glauth_auxiliary import AuxiliaryData
-from charms.observability_libs.v1.cert_handler import CertHandler
+from charms.tls_certificates_interface.v4.tls_certificates import (
+    CertificateRequestAttributes,
+    Mode,
+    ProviderCertificate,
+    TLSCertificatesRequiresV4,
+)
 from ops.charm import CharmBase
 from ops.pebble import PathError
 from tenacity import Retrying, retry_if_exception_type, stop_after_attempt, wait_fixed
@@ -22,6 +28,7 @@ from tenacity import Retrying, retry_if_exception_type, stop_after_attempt, wait
 from configs import DatabaseConfig, LdapServerConfig
 from constants import (
     CERTIFICATE_FILE,
+    CERTIFICATES_INTEGRATION_NAME,
     CERTIFICATES_TRANSFER_INTEGRATION_NAME,
     DEFAULT_GID,
     DEFAULT_UID,
@@ -195,39 +202,58 @@ class CertificatesIntegration:
         self._container = charm._container
 
         k8s_svc_host = f"{charm.app.name}.{charm.model.name}.svc.cluster.local"
-        sans = [k8s_svc_host]
+        sans_dns, sans_ip = [k8s_svc_host], []
 
-        if ingress := charm.ingress_per_unit.url:
-            ingress_domain, *_ = ingress.rsplit(sep=":", maxsplit=1)
-            sans.append(ingress_domain)
+        for ingress in (charm.ingress_per_unit, charm.ldaps_ingress_per_unit):
+            if ingress_url := ingress.url:
+                ingress_domain, *_ = ingress_url.rsplit(sep=":", maxsplit=1)
 
-        if ldaps_ingress := charm.ldaps_ingress_per_unit.url:
-            ldaps_ingress_domain, *_ = ldaps_ingress.rsplit(sep=":", maxsplit=1)
-            sans.append(ldaps_ingress_domain)
+                try:
+                    ipaddress.ip_address(ingress_domain)
+                except ValueError:
+                    sans_dns.append(ingress_domain)
+                else:
+                    sans_ip.append(ingress_domain)
 
-        self.cert_handler = CertHandler(
+        self.csr_attributes = CertificateRequestAttributes(
+            common_name=k8s_svc_host,
+            sans_dns=frozenset(sans_dns),
+            sans_ip=frozenset(sans_ip),
+        )
+        self.cert_requirer = TLSCertificatesRequiresV4(
             charm,
-            key="glauth-server-cert",
-            cert_subject=k8s_svc_host,
-            sans=sans,
+            relationship_name=CERTIFICATES_INTEGRATION_NAME,
+            certificate_requests=[self.csr_attributes],
+            mode=Mode.UNIT,
+            refresh_events=[
+                charm.ingress_per_unit.on.ready_for_unit,
+                charm.ingress_per_unit.on.revoked_for_unit,
+                charm.ldaps_ingress_per_unit.on.ready_for_unit,
+                charm.ldaps_ingress_per_unit.on.revoked_for_unit,
+            ],
         )
 
     @property
     def _ca_cert(self) -> Optional[str]:
-        return self.cert_handler.ca_cert
+        return str(self._certs.ca) if self._certs else None
 
     @property
     def _server_key(self) -> Optional[str]:
-        return self.cert_handler.private_key
+        private_key = self.cert_requirer.private_key
+        return str(private_key) if private_key else None
 
     @property
     def _server_cert(self) -> Optional[str]:
-        return self.cert_handler.server_cert
+        return str(self._certs.certificate) if self._certs else None
 
     @property
     def _ca_chain(self) -> Optional[list[str]]:
-        chain = self.cert_handler.chain
-        return chain.split("\n\n") if chain else None
+        return [str(chain) for chain in self._certs.chain] if self._certs else None
+
+    @property
+    def _certs(self) -> Optional[ProviderCertificate]:
+        cert, *_ = self.cert_requirer.get_assigned_certificate(self.csr_attributes)
+        return cert
 
     @property
     def cert_data(self) -> CertificateData:
@@ -238,7 +264,7 @@ class CertificatesIntegration:
         )
 
     def update_certificates(self) -> None:
-        if not self.cert_handler.enabled:
+        if not self._charm.model.get_relation(CERTIFICATES_INTEGRATION_NAME):
             logger.debug("The certificates integration is not ready.")
             self._remove_certificates()
             return
@@ -252,7 +278,8 @@ class CertificatesIntegration:
         self._push_certificates()
 
     def certs_ready(self) -> bool:
-        return all((self._ca_cert, self._ca_chain, self._server_key, self._server_cert))
+        certs, private_key = self.cert_requirer.get_assigned_certificate(self.csr_attributes)
+        return all((certs, private_key))
 
     def _prepare_certificates(self) -> None:
         SERVER_CA_CERT.write_text(self._ca_cert)  # type: ignore[arg-type]

@@ -1,12 +1,21 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
-
+import datetime
 import os
 from typing import Callable
 from unittest.mock import MagicMock
 
 import pytest
 from charms.glauth_k8s.v0.ldap import LdapProviderData
+from charms.tls_certificates_interface.v4.tls_certificates import (
+    Certificate,
+    CertificateSigningRequest,
+)
+from cryptography import x509
+from cryptography.hazmat._oid import NameOID
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from ops.charm import CharmBase
 from ops.testing import Harness
 from pytest_mock import MockerFixture
@@ -131,7 +140,7 @@ def mocked_ldaps_integration(mocker: MockerFixture, harness: Harness) -> MagicMo
 @pytest.fixture
 def mocked_certificates_integration(mocker: MockerFixture, harness: Harness) -> MagicMock:
     mocked = mocker.patch("charm.CertificatesIntegration", autospec=True)
-    mocked.cert_handler = harness.charm._certs_integration.cert_handler
+    mocked.cert_requirer = harness.charm._certs_integration.cert_requirer
     harness.charm._certs_integration = mocked
     return mocked
 
@@ -266,3 +275,61 @@ def certificates_transfer_relation(harness: Harness) -> int:
 @pytest.fixture(autouse=True)
 def mocked_juju_version(mocker: MockerFixture) -> MagicMock:
     return mocker.patch.dict(os.environ, {"JUJU_VERSION": "3.2.1"})
+
+
+@pytest.fixture(scope="module")
+def private_key() -> RSAPrivateKey:
+    key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+    )
+    return key
+
+
+@pytest.fixture(scope="module")
+def csr(private_key: RSAPrivateKey) -> CertificateSigningRequest:
+    csr = (
+        x509.CertificateSigningRequestBuilder()
+        .subject_name(
+            x509.Name([
+                x509.NameAttribute(NameOID.COMMON_NAME, "mysite.com"),
+            ])
+        )
+        .add_extension(
+            x509.SubjectAlternativeName([
+                x509.DNSName("mysite.com"),
+            ]),
+            critical=False,
+        )
+        .sign(private_key, hashes.SHA256())
+    )
+
+    raw = csr.public_bytes(encoding=serialization.Encoding.PEM).decode("utf-8")
+    return CertificateSigningRequest(raw, common_name="mysite.com")
+
+
+@pytest.fixture(scope="module")
+def certificate(private_key: RSAPrivateKey) -> Certificate:
+    start_time = datetime.datetime.now(datetime.timezone.utc)
+    expiry_time = start_time + datetime.timedelta(days=10)
+    subject = issuer = x509.Name([
+        x509.NameAttribute(NameOID.COMMON_NAME, "mysite.com"),
+    ])
+
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(private_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(start_time)
+        .not_valid_after(expiry_time)
+        .add_extension(
+            x509.SubjectAlternativeName([x509.DNSName("mysite.com")]),
+            critical=False,
+        )
+        .sign(private_key, hashes.SHA256())
+    )
+
+    raw = cert.public_bytes(encoding=serialization.Encoding.PEM).decode("utf-8")
+    return Certificate(raw, "mysite.com", expiry_time, start_time)

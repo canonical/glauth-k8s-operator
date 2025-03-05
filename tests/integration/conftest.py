@@ -180,7 +180,7 @@ async def ldaps_ingress_url(
 
     ingress = ldaps_ingress_per_unit_integration_data["ingress"]
     matched = INGRESS_URL_REGEX.search(ingress)
-    assert matched is not None, "ingress url not found in ingress per unit integration data"
+    assert matched is not None, "ingress url not found in ldaps ingress per unit integration data"
 
     return matched.group("ingress_url")
 
