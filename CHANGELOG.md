@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.2](https://github.com/canonical/glauth-k8s-operator/compare/v1.0.1...v1.0.2) (2025-03-21)
+
+
+### Bug Fixes
+
+* fix the lint ci ([594a7bc](https://github.com/canonical/glauth-k8s-operator/commit/594a7bc57c09b50f44cbd183c712b31a45a22d5f))
+* fix the lint ci ([6cb1815](https://github.com/canonical/glauth-k8s-operator/commit/6cb1815b2ffa19a6cd156e5987dca28f97905bd2))
+
 ## [1.0.1](https://github.com/canonical/glauth-k8s-operator/compare/v1.0.0...v1.0.1) (2025-03-14)
 
 
