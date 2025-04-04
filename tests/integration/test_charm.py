@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 @pytest.mark.skip_if_deployed
 @pytest.mark.abort_on_fail
-async def test_build_and_deploy(ops_test: OpsTest) -> None:
+async def test_build_and_deploy(ops_test: OpsTest, local_charm: Path) -> None:
     await asyncio.gather(
         ops_test.model.deploy(
             DB_APP,
@@ -58,9 +58,8 @@ async def test_build_and_deploy(ops_test: OpsTest) -> None:
         ),
     )
 
-    charm_path = await ops_test.build_charm(".")
     await ops_test.model.deploy(
-        str(charm_path),
+        entity_url=str(local_charm),
         resources={"oci-image": GLAUTH_IMAGE},
         application_name=GLAUTH_APP,
         config={"starttls_enabled": True, "ldaps_enabled": True},
@@ -68,7 +67,7 @@ async def test_build_and_deploy(ops_test: OpsTest) -> None:
         series="jammy",
     )
     await ops_test.model.deploy(
-        str(charm_path),
+        entity_url=str(local_charm),
         resources={"oci-image": GLAUTH_IMAGE},
         application_name=GLAUTH_PROXY,
         config={"starttls_enabled": True, "ldaps_enabled": True},
