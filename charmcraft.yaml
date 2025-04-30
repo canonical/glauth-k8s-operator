@@ -21,7 +21,7 @@ resources:
   oci-image:
     type: oci-image
     description: GLAuth oci-image
-    upstream-source: ghcr.io/canonical/glauth:2.3.1
+    upstream-source: ghcr.io/canonical/glauth:2.4.0
 
 requires:
   pg-database:
