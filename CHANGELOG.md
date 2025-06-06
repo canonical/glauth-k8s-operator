@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.3](https://github.com/canonical/glauth-k8s-operator/compare/v1.1.2...v1.1.3) (2025-06-06)
+
+
+### Bug Fixes
+
+* add pod resource constraints ([3b91894](https://github.com/canonical/glauth-k8s-operator/commit/3b918942b1985055408dabf1f8f2eb4814df0d1f))
+* fix constraint ([dfaeb57](https://github.com/canonical/glauth-k8s-operator/commit/dfaeb576b6a949690326ee10b3ecfb39e23d570e))
+
 ## [1.1.2](https://github.com/canonical/glauth-k8s-operator/compare/v1.1.1...v1.1.2) (2025-05-05)
 
 
