@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.3](https://github.com/canonical/glauth-k8s-operator/compare/v1.1.2...v1.1.3) (2025-07-22)
+
+
+### Bug Fixes
+
+* add pod resource constraints ([3b91894](https://github.com/canonical/glauth-k8s-operator/commit/3b918942b1985055408dabf1f8f2eb4814df0d1f))
+* compare config file against cm ([0b52bd0](https://github.com/canonical/glauth-k8s-operator/commit/0b52bd0a6f1cde7f070baf60682aec4c87e56239))
+* do not restart service if config did not change ([7cd4a8f](https://github.com/canonical/glauth-k8s-operator/commit/7cd4a8f0753c8c01c4b092f70957a5aee9152f7d))
+* fix constraint ([dfaeb57](https://github.com/canonical/glauth-k8s-operator/commit/dfaeb576b6a949690326ee10b3ecfb39e23d570e))
+* handle update_status ([8c7db47](https://github.com/canonical/glauth-k8s-operator/commit/8c7db471e444db2883aea0d51cfdad4af35ee288))
+* set default for var.constraints ([ced318f](https://github.com/canonical/glauth-k8s-operator/commit/ced318f4a459fcef87c752233bb9df21f64017a1))
+* set default for var.constraints ([424363d](https://github.com/canonical/glauth-k8s-operator/commit/424363d530ee24e09f856602b8dda47db489e581))
+* update charm dependent libs ([0599a64](https://github.com/canonical/glauth-k8s-operator/commit/0599a645542ea392bbb7856eb53eb7cb102640b6))
+
 ## [1.1.2](https://github.com/canonical/glauth-k8s-operator/compare/v1.1.1...v1.1.2) (2025-05-05)
 
 
