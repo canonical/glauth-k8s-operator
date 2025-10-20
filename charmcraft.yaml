@@ -7,22 +7,18 @@ description: |
   Kubernetes Charmed Glauth Operator
 summary: |
   LDAP authentication provider
-
 links:
   documentation: https://discourse.charmhub.io/t/13946
   source: https://github.com/canonical/glauth-k8s-operator
   issues: https://github.com/canonical/glauth-k8s-operator/issues
-
 containers:
   glauth:
     resource: oci-image
-
 resources:
   oci-image:
     type: oci-image
     description: GLAuth oci-image
-    upstream-source: ghcr.io/canonical/glauth:2.4.0
-
+    upstream-source: ghcr.io/canonical/glauth-rock:main
 requires:
   pg-database:
     interface: postgresql_client
@@ -48,7 +44,6 @@ requires:
       Use another ldap server as a backend
     interface: ldap
     optional: true
-
 provides:
   metrics-endpoint:
     description: |
@@ -75,7 +70,6 @@ provides:
       Transfer certificates to client charmed operators.
     interface: certificate_transfer
     optional: true
-
 config:
   options:
     log_level:
@@ -123,11 +117,8 @@ config:
         automatically deduced from it).
         See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
       type: string
-
-
 platforms:
   ubuntu@22.04:amd64:
-
 parts:
   charm:
     charm-binary-python-packages:
