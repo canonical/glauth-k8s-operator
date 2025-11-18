@@ -169,6 +169,7 @@ class GlauthClientTestSuite:
             GLAUTH_CLIENT_APP,
             application_name=ldap_client_app_name,
             channel="beta",
+            revision=92,
             config={
                 "src-overwrite": json.dumps(any_charm_src_overwrite),
                 "python-packages": f"pydantic ~= {pydantic_version}\njsonschema\nldap3",

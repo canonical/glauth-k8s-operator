@@ -136,5 +136,5 @@ parts:
       - psycopg[binary]
       - "setuptools>=70.0.0"
     build-packages:
-      - rustc
-      - cargo
+      - "rustc-1.85"
+      - "cargo-1.85"
