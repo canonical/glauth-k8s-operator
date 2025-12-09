@@ -147,7 +147,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 11
+LIBPATCH = 12
 
 PYDEPS = ["pydantic"]
 
@@ -501,13 +501,12 @@ class LdapRequirer(Object):
         self.on.ldap_unavailable.emit(event.relation)
 
     def _load_provider_data(self, provider_data: dict) -> Optional[LdapProviderData]:
-        if secret_id := provider_data.get("bind_password_secret"):
+        try:
+            secret_id = provider_data.get("bind_password_secret")
             secret = self.charm.model.get_secret(id=secret_id)
             provider_data["bind_password"] = secret.get_content().get("password")
-
-        try:
             return LdapProviderData(**provider_data)
-        except ValidationError:
+        except (ops.ModelError, ops.SecretNotFoundError, TypeError, ValidationError):
             return None
 
     def consume_ldap_relation_data(
