@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.4](https://github.com/canonical/glauth-k8s-operator/compare/v1.1.3...v1.1.4) (2025-12-11)
+
+
+### Bug Fixes
+
+* return `None` when `bind_password` secret is inaccessible to requirer ([db0b8fb](https://github.com/canonical/glauth-k8s-operator/commit/db0b8fb2435ef2eb302c864b602823a19873ca2e))
+* return `None` when `bind_password` secret is inaccessible to requirer ([#205](https://github.com/canonical/glauth-k8s-operator/issues/205)) ([cd5e07f](https://github.com/canonical/glauth-k8s-operator/commit/cd5e07f5112920e39d4ff15f61a7adb70beb17eb))
+
 ## [1.1.3](https://github.com/canonical/glauth-k8s-operator/compare/v1.1.2...v1.1.3) (2025-07-30)
 
 
