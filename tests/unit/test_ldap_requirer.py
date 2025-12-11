@@ -143,6 +143,26 @@ def test_consume_ldap_relation_data(harness: Harness, provider_data: Dict) -> No
     assert data.bind_password_secret == provider_data["bind_password_secret"]
 
 
+def test_consume_ldap_relation_data_inaccessible_secret(
+    harness: Harness, provider_data: Dict
+) -> None:
+    password = "p4ssw0rd"
+    relation_id = harness.add_relation("ldap", "provider")
+    harness.add_relation_unit(relation_id, "provider/0")
+    secret_id = harness.add_model_secret("provider", {"password": password})
+    provider_data["bind_password_secret"] = secret_id
+    harness.update_relation_data(
+        relation_id,
+        "provider",
+        provider_data,
+    )
+
+    charm: LdapRequirerCharm = harness.charm
+    data = charm.ldap_requirer.consume_ldap_relation_data()
+
+    assert data is None
+
+
 def test_not_ready(harness: Harness, provider_data: Dict) -> None:
     relation_id = harness.add_relation("ldap", "provider")
     harness.add_relation_unit(relation_id, "provider/0")
