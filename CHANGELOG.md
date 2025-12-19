@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/canonical/glauth-k8s-operator/compare/v1.1.4...v1.2.0) (2025-12-19)
+
+
+### Features
+
+* expose active relations on ldap providers ([a39a5c5](https://github.com/canonical/glauth-k8s-operator/commit/a39a5c5c151a740735913432246c6acf525bf5f3))
+* expose active relations on ldap providers ([#210](https://github.com/canonical/glauth-k8s-operator/issues/210)) ([fb163a4](https://github.com/canonical/glauth-k8s-operator/commit/fb163a4667c538680c23c3975dd2b51e6b8bdda6))
+
 ## [1.1.4](https://github.com/canonical/glauth-k8s-operator/compare/v1.1.3...v1.1.4) (2025-12-11)
 
 
