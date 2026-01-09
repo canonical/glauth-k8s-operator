@@ -7,7 +7,7 @@
 
 resource "juju_application" "glauth_k8s" {
   name        = var.app_name
-  model       = var.model_name
+  model_uuid  = var.model_uuid
   trust       = true
   config      = var.config
   constraints = var.constraints
