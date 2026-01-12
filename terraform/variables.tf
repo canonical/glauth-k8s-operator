@@ -1,14 +1,15 @@
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-variable "model_name" {
-  description = "The Juju model name"
+variable "model_uuid" {
+  description = "The Juju model UUID"
   type        = string
 }
 
 variable "app_name" {
   description = "The Juju application name"
   type        = string
+  default     = "glauth-k8s"
 }
 
 variable "config" {
@@ -20,7 +21,7 @@ variable "config" {
 variable "constraints" {
   description = "The constraints to be applied"
   type        = string
-  default     = "arch=amd64"
+  default     = ""
 }
 
 variable "units" {
