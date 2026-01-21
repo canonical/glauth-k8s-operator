@@ -294,6 +294,28 @@ class TestLdapRequestedEvent:
         actual = dict(harness.get_relation_data(ldap_relation, harness.model.app.name))
         assert LDAPS_PROVIDER_DATA.model_dump() == actual
 
+    def test_when_event_app_is_none(
+        self,
+        harness: Harness,
+        certificates_relation: int,
+        database_resource: MagicMock,
+        mocked_ldap_integration: MagicMock,
+        mocker: MockerFixture,
+    ) -> None:
+        """Test that the handler gracefully handles event.app being None."""
+        # Create a mock event with app set to None
+        from charms.glauth_k8s.v0.ldap import LdapRequestedEvent
+
+        mock_event = mocker.MagicMock(spec=LdapRequestedEvent)
+        mock_event.app = None
+        mock_event.data = None
+
+        # This should not raise an AttributeError
+        harness.charm._on_ldap_requested(mock_event)
+
+        # Verify the handler returned early without processing
+        mocked_ldap_integration.load_bind_account.assert_not_called()
+
 
 class TestLdapReadyEvent:
     def test_when_requirer_data_not_ready(

@@ -367,6 +367,10 @@ class GLAuthCharm(CharmBase):
     @leader_unit
     @wait_when(database_not_ready, service_not_ready)
     def _on_ldap_requested(self, event: LdapRequestedEvent) -> None:
+        if event.app is None:
+            logger.warning("LDAP requested event has no app (relation may have departed)")
+            return
+
         if not (requirer_data := event.data):
             logger.warning(f"The LDAP requirer {event.app.name} does not provide necessary data.")
             return
