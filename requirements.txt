@@ -3,6 +3,6 @@ Jinja2
 lightkube
 lightkube-models
 ops>=2.2.0
-pydantic~=2.5.3
+pydantic~=2.12.5
 SQLAlchemy
-tenacity~=8.2.3
+tenacity~=8.5.0
