@@ -303,7 +303,8 @@ def private_key() -> RSAPrivateKey:
 @pytest.fixture(scope="module")
 def csr(private_key: RSAPrivateKey) -> CertificateSigningRequest:
     csr = (
-        x509.CertificateSigningRequestBuilder()
+        x509
+        .CertificateSigningRequestBuilder()
         .subject_name(
             x509.Name([
                 x509.NameAttribute(NameOID.COMMON_NAME, "mysite.com"),
@@ -331,7 +332,8 @@ def certificate(private_key: RSAPrivateKey) -> Certificate:
     ])
 
     cert = (
-        x509.CertificateBuilder()
+        x509
+        .CertificateBuilder()
         .subject_name(subject)
         .issuer_name(issuer)
         .public_key(private_key.public_key())

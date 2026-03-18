@@ -32,7 +32,6 @@ repos:
       args: ["--config-file", "pyproject.toml"]
       additional_dependencies:
         - types-PyYAML
-        - types-aiofiles
 - repo: https://github.com/compilerla/conventional-pre-commit
   rev: v4.4.0
   hooks:
