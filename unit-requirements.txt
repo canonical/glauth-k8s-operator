@@ -3,5 +3,6 @@ coverage[toml]
 cryptography
 ipdb
 jsonschema
+ops[testing]
 pytest
 pytest-mock

@@ -2,12 +2,14 @@
 # See LICENSE file for licensing details.
 
 import json
-from typing import Any, Dict, Generator, List
+from typing import Any
 
 import pytest
+import yaml
 from charms.glauth_k8s.v0.ldap import LdapReadyEvent, LdapRequirer, LdapUnavailableEvent
 from ops import CharmBase, EventBase
-from ops.testing import Harness
+from ops.testing import Context, Model, Relation, Secret, State
+from unit.conftest import create_state
 
 METADATA = """
 name: requirer-tester
@@ -17,45 +19,12 @@ requires:
 """
 
 
-@pytest.fixture()
-def harness() -> Generator:
-    harness = Harness(LdapRequirerCharm, meta=METADATA)
-    harness.set_leader(True)
-    harness.set_model_name("test")
-    harness.begin_with_initial_hooks()
-    yield harness
-    harness.cleanup()
-
-
-@pytest.fixture()
-def provider_data() -> Dict[str, str]:
-    return {
-        "urls": '["ldap://path.to.glauth:3893"]',
-        "ldaps_urls": '["ldaps://path.to.glauth:3894"]',
-        "base_dn": "dc=glauth,dc=com",
-        "starttls": "true",
-        "bind_dn": "cn=serviceuser,ou=svcaccts,dc=glauth,dc=com",
-        "bind_password_secret": "",
-        "auth_method": "simple",
-    }
-
-
-@pytest.fixture()
-def requirer_data() -> Dict[str, str]:
-    return {
-        "user": "requirer-tester",
-        "group": "test",
-    }
-
-
-def dict_to_relation_data(dic: Dict) -> Dict:
-    return {k: json.dumps(v) if isinstance(v, (list, dict)) else v for k, v in dic.items()}
-
-
 class LdapRequirerCharm(CharmBase):
+    """Test charm that wraps LdapRequirer and records emitted events."""
+
     def __init__(self, *args: Any) -> None:
         super().__init__(*args)
-        self.events: List[EventBase] = []
+        self.events: list[EventBase] = []
         self.ldap_requirer = LdapRequirer(self)
         self.framework.observe(
             self.ldap_requirer.on.ldap_ready,
@@ -70,123 +39,124 @@ class LdapRequirerCharm(CharmBase):
         self.events.append(event)
 
 
-def test_data_in_relation_bag(harness: Harness, requirer_data: Dict) -> None:
-    relation_id = harness.add_relation("ldap", "provider")
+@pytest.fixture
+def context() -> Context:
+    """ops.testing Context for the test LdapRequirerCharm."""
+    return Context(LdapRequirerCharm, meta=yaml.safe_load(METADATA), juju_version="3.2.1")
 
-    relation_data = harness.get_relation_data(relation_id, harness.model.app.name)
 
+@pytest.fixture
+def provider_data() -> dict[str, str]:
+    """Minimal LDAP provider relation data."""
+    return {
+        "urls": '["ldap://path.to.glauth:3893"]',
+        "ldaps_urls": '["ldaps://path.to.glauth:3894"]',
+        "base_dn": "dc=glauth,dc=com",
+        "starttls": "true",
+        "bind_dn": "cn=serviceuser,ou=svcaccts,dc=glauth,dc=com",
+        "bind_password_secret": "",
+        "auth_method": "simple",
+    }
+
+
+@pytest.fixture
+def requirer_data() -> dict[str, str]:
+    """Expected LDAP requirer relation data."""
+    return {
+        "user": "requirer-tester",
+        "group": "test",
+    }
+
+
+def dict_to_relation_data(dic: dict[str, Any]) -> dict[str, str]:
+    """Serialise list/dict values to JSON strings."""
+    return {k: json.dumps(v) if isinstance(v, (list, dict)) else v for k, v in dic.items()}
+
+
+def test_data_in_relation_bag(context: Context, requirer_data: dict[str, str]) -> None:
+    relation = Relation("ldap")
+    # Use a fixed model name so the LdapRequirer's group == requirer_data["group"].
+    state = State(model=Model(name="test"), leader=True, relations=[relation])
+
+    state_out = context.run(context.on.relation_created(relation), state)
+
+    relation_data = state_out.get_relation(relation.id).local_app_data
     assert relation_data == dict_to_relation_data(requirer_data)
 
 
 def test_event_emitted_when_ldap_is_ready(
-    harness: Harness,
-    provider_data: Dict,
-    requirer_data: Dict,
+    context: Context,
+    provider_data: dict[str, str],
 ) -> None:
     password = "p4ssw0rd"
-    relation_id = harness.add_relation("ldap", "provider")
-    harness.add_relation_unit(relation_id, "provider/0")
-    relation_id = harness.add_relation("ldap", "provider")
-    harness.add_relation_unit(relation_id, "provider/0")
-    secret_id = harness.add_model_secret("provider", {"password": password})
-    harness.grant_secret(secret_id, "requirer-tester")
-    provider_data["bind_password_secret"] = secret_id
-    harness.update_relation_data(
-        relation_id,
-        "provider",
-        provider_data,
-    )
-    relation_data = harness.get_relation_data(relation_id, harness.model.app.name)
-    events = harness.charm.events
+    secret = Secret(id="secret:bind-0001", tracked_content={"password": password})
+    data = {**provider_data, "bind_password_secret": secret.id}
+    relation = Relation("ldap", remote_app_data=data)
+    state = create_state(leader=True, relations=[relation], secrets=[secret], containers=[])
 
-    assert relation_data == dict_to_relation_data(requirer_data)
-    assert len(events) == 1
-    assert isinstance(events[0], LdapReadyEvent)
+    context.run(context.on.relation_changed(relation), state)
+
+    # The requirer identity (user/group) is written on relation_created, not relation_changed.
+    # This test's purpose is verifying the ldap_ready event is emitted.
+    assert any(isinstance(e, LdapReadyEvent) for e in context.emitted_events)
 
 
-def test_event_emitted_when_relation_removed(
-    harness: Harness,
-    provider_data: Dict,
-    requirer_data: Dict,
-) -> None:
-    relation_id = harness.add_relation("ldap", "provider")
-    harness.add_relation_unit(relation_id, "provider/0")
-    harness.remove_relation(relation_id)
+def test_event_emitted_when_relation_removed(context: Context) -> None:
+    relation = Relation("ldap")
+    state = create_state(leader=True, relations=[relation], containers=[])
 
-    events = harness.charm.events
+    context.run(context.on.relation_broken(relation), state)
 
-    assert len(events) == 1
-    assert isinstance(events[0], LdapUnavailableEvent)
+    assert any(isinstance(e, LdapUnavailableEvent) for e in context.emitted_events)
 
 
-def test_consume_ldap_relation_data(harness: Harness, provider_data: Dict) -> None:
+def test_consume_ldap_relation_data(context: Context, provider_data: dict[str, str]) -> None:
     password = "p4ssw0rd"
-    relation_id = harness.add_relation("ldap", "provider")
-    harness.add_relation_unit(relation_id, "provider/0")
-    secret_id = harness.add_model_secret("provider", {"password": password})
-    harness.grant_secret(secret_id, "requirer-tester")
-    provider_data["bind_password_secret"] = secret_id
-    harness.update_relation_data(
-        relation_id,
-        "provider",
-        provider_data,
-    )
+    secret = Secret(id="secret:bind-0002", tracked_content={"password": password})
+    data = {**provider_data, "bind_password_secret": secret.id}
+    relation = Relation("ldap", remote_app_data=data)
+    state = create_state(leader=True, relations=[relation], secrets=[secret], containers=[])
 
-    charm: LdapRequirerCharm = harness.charm
-    data = charm.ldap_requirer.consume_ldap_relation_data()
+    with context(context.on.relation_changed(relation), state) as mgr:
+        mgr.run()
+        result = mgr.charm.ldap_requirer.consume_ldap_relation_data()
 
-    assert data
-    assert data.auth_method == provider_data["auth_method"]
-    assert data.base_dn == provider_data["base_dn"]
-    assert data.bind_dn == provider_data["bind_dn"]
-    assert data.bind_password == password
-    assert data.bind_password_secret == provider_data["bind_password_secret"]
+    assert result is not None
+    assert result.auth_method == provider_data["auth_method"]
+    assert result.base_dn == provider_data["base_dn"]
+    assert result.bind_dn == provider_data["bind_dn"]
+    assert result.bind_password == password
+    assert result.bind_password_secret == secret.id
 
 
 def test_consume_ldap_relation_data_inaccessible_secret(
-    harness: Harness, provider_data: Dict
+    context: Context, provider_data: dict[str, str]
 ) -> None:
-    password = "p4ssw0rd"
-    relation_id = harness.add_relation("ldap", "provider")
-    harness.add_relation_unit(relation_id, "provider/0")
-    secret_id = harness.add_model_secret("provider", {"password": password})
-    provider_data["bind_password_secret"] = secret_id
-    harness.update_relation_data(
-        relation_id,
-        "provider",
-        provider_data,
-    )
+    data = {**provider_data, "bind_password_secret": "secret:no-grant"}
+    relation = Relation("ldap", remote_app_data=data)
+    state = create_state(leader=True, relations=[relation], containers=[])
 
-    charm: LdapRequirerCharm = harness.charm
-    data = charm.ldap_requirer.consume_ldap_relation_data()
+    with context(context.on.relation_changed(relation), state) as mgr:
+        mgr.run()
+        result = mgr.charm.ldap_requirer.consume_ldap_relation_data()
 
-    assert data is None
+    assert result is None
 
 
-def test_not_ready(harness: Harness, provider_data: Dict) -> None:
-    relation_id = harness.add_relation("ldap", "provider")
-    harness.add_relation_unit(relation_id, "provider/0")
-    provider_data.pop("urls")
-    harness.update_relation_data(
-        relation_id,
-        "provider",
-        provider_data,
-    )
+def test_not_ready(context: Context, provider_data: dict[str, str]) -> None:
+    data = {k: v for k, v in provider_data.items() if k != "urls"}
+    relation = Relation("ldap", remote_app_data=data)
+    state = create_state(leader=True, relations=[relation], containers=[])
 
-    charm: LdapRequirerCharm = harness.charm
-
-    assert not charm.ldap_requirer.ready()
+    with context(context.on.relation_changed(relation), state) as mgr:
+        mgr.run()
+        assert not mgr.charm.ldap_requirer.ready()
 
 
-def test_ready(harness: Harness, provider_data: Dict) -> None:
-    relation_id = harness.add_relation("ldap", "provider")
-    harness.add_relation_unit(relation_id, "provider/0")
-    harness.update_relation_data(
-        relation_id,
-        "provider",
-        provider_data,
-    )
+def test_ready(context: Context, provider_data: dict[str, str]) -> None:
+    relation = Relation("ldap", remote_app_data=provider_data)
+    state = create_state(leader=True, relations=[relation], containers=[])
 
-    charm: LdapRequirerCharm = harness.charm
-
-    assert charm.ldap_requirer.ready()
+    with context(context.on.relation_changed(relation), state) as mgr:
+        mgr.run()
+        assert mgr.charm.ldap_requirer.ready()
