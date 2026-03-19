@@ -1,7 +1,7 @@
 -r requirements.txt
-aiofiles
-juju
+cryptography
+jubilant
 psycopg[binary]
 pytest
-pytest-operator
 python-ldap
+tenacity
