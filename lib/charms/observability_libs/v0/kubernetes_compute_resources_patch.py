@@ -149,7 +149,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 8
+LIBPATCH = 9
 
 
 _Decimal = Union[Decimal, float, str, int]  # types that are potentially convertible to Decimal
@@ -411,8 +411,7 @@ class ResourcePatcher:
         """Return the resource limits that are in effect for the container in the given pod."""
         pod = self.client.get(Pod, name=pod_name, namespace=self.namespace)
         podspec = self._get_container(
-            self.container_name,
-            pod.spec.containers,  # type: ignore[attr-defined]
+            self.container_name, pod.spec.containers  # type: ignore[attr-defined]
         )
         return podspec.resources
 
@@ -490,7 +489,7 @@ class ResourcePatcher:
             and sts.status.readyReplicas < sts.spec.replicas
         ):
             logger.debug(
-                f"Waiting for {sts.spec.replicas - sts.status.readyReplicas} pods to be ready..."
+                f"Waiting for {sts.spec.replicas-sts.status.readyReplicas} pods to be ready..."
             )
             return True
 
@@ -533,8 +532,7 @@ class ResourcePatcher:
             bool: A boolean indicating if the service patch has been applied and is in effect.
         """
         return self.is_patched(resource_reqs) and equals_canonically(  # pyright: ignore
-            resource_reqs,
-            self.get_actual(pod_name),  # pyright: ignore
+            resource_reqs, self.get_actual(pod_name)  # pyright: ignore
         )
 
     def apply(self, resource_reqs: ResourceRequirements, dry_run=False) -> None:
@@ -586,6 +584,14 @@ class KubernetesComputeResourcesPatch(Object):
                 will be observed to re-apply the patch.
         """
         super().__init__(charm, "{}_{}".format(self.__class__.__name__, container_name))
+
+        if container_name == "charm":
+            raise ValueError(
+                "Starting with juju 3.6.9, juju manages the charm container "
+                "constraints and you'll get errors by doing this if the charm is deployed "
+                "on higher juju versions."
+            )
+
         self._charm = charm
         self._container_name = container_name
         self.resource_reqs_func = resource_reqs_func
@@ -608,7 +614,7 @@ class KubernetesComputeResourcesPatch(Object):
     def _on_config_changed(self, _):
         self._patch()
 
-    def _patch(self) -> None:
+    def _patch(self) -> None: # noqa: C901
         """Patch the Kubernetes resources created by Juju to limit cpu or mem.
 
         This method will keep on retrying to patch the kubernetes resource for a default duration of 20 seconds
@@ -659,7 +665,9 @@ class KubernetesComputeResourcesPatch(Object):
         except ApiError as e:
             if e.status.code == 403:
                 msg = f"Kubernetes resources patch failed: `juju trust` this application. {e}"
-
+            elif e.status.code == 409:
+                msg = (f"Kubernetes resources patch failed: someone else (likely juju) "
+                       f"owns the resources you're trying to patch {e}")
             else:
                 msg = f"Kubernetes resources patch failed: {e}"
 
