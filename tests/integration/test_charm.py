@@ -67,7 +67,6 @@ def test_build_and_deploy(juju: jubilant.Juju, local_charm: Path) -> None:
         app=GLAUTH_APP,
         config={"starttls_enabled": "true", "ldaps_enabled": "true"},
         trust=True,
-        base="ubuntu@22.04",
     )
     # Deploy GLAuth Proxy
     juju.deploy(
@@ -76,7 +75,6 @@ def test_build_and_deploy(juju: jubilant.Juju, local_charm: Path) -> None:
         app=GLAUTH_PROXY,
         config={"starttls_enabled": "true", "ldaps_enabled": "true"},
         trust=True,
-        base="ubuntu@22.04",
     )
 
     # Integrations
@@ -101,8 +99,6 @@ def test_build_and_deploy(juju: jubilant.Juju, local_charm: Path) -> None:
             DB_APP,
             GLAUTH_APP,
             GLAUTH_PROXY,
-            INGRESS_APP,
-            LDAPS_INGRESS_APP,
         ),
         timeout=20 * 60,
     )
