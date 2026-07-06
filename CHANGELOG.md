@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0](https://github.com/canonical/glauth-k8s-operator/compare/v1.2.0...v1.3.0) (2026-07-06)
+
+
+### Features
+
+* support arm64 ([61580cb](https://github.com/canonical/glauth-k8s-operator/commit/61580cb157b06da279a3df2f9c92dc289f0741a8))
+* support arm64 ([#274](https://github.com/canonical/glauth-k8s-operator/issues/274)) ([19356dc](https://github.com/canonical/glauth-k8s-operator/commit/19356dc09bb03a5b5a20e1fe749ffd57e6294452))
+
 ## [1.2.0](https://github.com/canonical/glauth-k8s-operator/compare/v1.1.4...v1.2.0) (2026-01-15)
 
 
