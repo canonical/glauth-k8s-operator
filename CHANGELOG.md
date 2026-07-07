@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.1](https://github.com/canonical/glauth-k8s-operator/compare/v1.3.0...v1.3.1) (2026-07-07)
+
+
+### Bug Fixes
+
+* update canonical/identity-team action to v1.14.1 ([ac316a4](https://github.com/canonical/glauth-k8s-operator/commit/ac316a4068a3be65819845756c9206f6db03147c))
+* update canonical/identity-team action to v1.14.1 ([#277](https://github.com/canonical/glauth-k8s-operator/issues/277)) ([f2038cb](https://github.com/canonical/glauth-k8s-operator/commit/f2038cb8f993551916aa048adc712282c5afddcc))
+
 ## [1.3.0](https://github.com/canonical/glauth-k8s-operator/compare/v1.2.0...v1.3.0) (2026-07-06)
 
 
