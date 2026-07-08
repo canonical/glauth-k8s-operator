@@ -470,6 +470,7 @@ class TestCertChangedEvent:
         context: Context,
         mocker: MagicMock,
         mocked_tls_certificates: MagicMock,
+        mocked_restart_glauth_service: MagicMock,
         certificates_relation: Relation,
         db_relation_ready: Relation,
         csr: CertificateSigningRequest,
@@ -495,6 +496,7 @@ class TestCertChangedEvent:
 
         mock_update.assert_called_once()
         mock_transfer.assert_called_once()
+        mocked_restart_glauth_service.assert_called_with(restart=True)
 
 
 class TestCertificatesTransferEvent:

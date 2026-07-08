@@ -259,11 +259,11 @@ class GLAuthCharm(CharmBase):
         backend_not_ready,
         tls_certificates_not_ready,
     )
-    def _handle_event_update(self, event: HookEvent) -> None:
+    def _handle_event_update(self, event: HookEvent, restart: bool = False) -> None:
         self._update_glauth_config()
         self._container.add_layer(WORKLOAD_CONTAINER, pebble_layer, combine=True)
 
-        self._restart_glauth_service(restart=self.config_changed)
+        self._restart_glauth_service(restart=restart or self.config_changed)
         self.unit.status = ActiveStatus()
 
     @property
@@ -409,7 +409,7 @@ class GLAuthCharm(CharmBase):
             )
             return
 
-        self._handle_event_update(event)
+        self._handle_event_update(event, restart=True)
         self._certs_transfer_integration.transfer_certificates(
             self._certs_integration.cert_data,
         )
