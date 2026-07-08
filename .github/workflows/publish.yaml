@@ -31,7 +31,7 @@ permissions:
 jobs:
   publish:
     name: Publish Charm
-    uses: canonical/identity-team/.github/workflows/charm-publish.yaml@089ede35177ddb25b8d0c13cdb030e13dfdf9ed9 # fix-publish-workflow
+    uses: canonical/identity-team/.github/workflows/charm-publish.yaml@b5070d98993fa72f429f4fdf8010f6f9a94eb4e0 # v1.14.2
     with:
       destination_channel: ${{ inputs.destination_channel}}
       source_branch: ${{ inputs.source_branch}}
