@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/canonical/glauth-k8s-operator/compare/v1.3.1...v1.3.2) (2026-07-08)
+
+
+### Bug Fixes
+
+* use fix-publish-workflow branch to publish charm ([1a77995](https://github.com/canonical/glauth-k8s-operator/commit/1a77995fac296a1ceaa6360a2662699f350b26c9))
+
 ## [1.3.1](https://github.com/canonical/glauth-k8s-operator/compare/v1.3.0...v1.3.1) (2026-07-07)
 
 
