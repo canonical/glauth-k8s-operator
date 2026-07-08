@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3](https://github.com/canonical/glauth-k8s-operator/compare/v1.3.2...v1.3.3) (2026-07-08)
+
+
+### Bug Fixes
+
+* **charm:** restart glauth service on certificate changes ([f6422e9](https://github.com/canonical/glauth-k8s-operator/commit/f6422e94f7cdc211b659c8184fe6d588ff5a5bbe)), closes [#281](https://github.com/canonical/glauth-k8s-operator/issues/281)
+
 ## [1.3.2](https://github.com/canonical/glauth-k8s-operator/compare/v1.3.1...v1.3.2) (2026-07-08)
 
 
