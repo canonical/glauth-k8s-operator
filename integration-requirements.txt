@@ -1,7 +1,0 @@
--r requirements.txt
-cryptography
-jubilant
-psycopg[binary]
-pytest
-python-ldap
-tenacity
