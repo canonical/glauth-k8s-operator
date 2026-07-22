@@ -3,13 +3,66 @@
 
 [project]
 name = "glauth-k8s-operator"
-version = "0.1.0"
-description = "A Charmed Operator for running GLAuth on Kubnernetes"
-requires-python = ">=3.11"
+version = "0.0.0"
+description = "A Charmed Operator for running GLAuth on Kubernetes"
 readme = "README.md"
 license = {file = "LICENSE"}
+requires-python = ">=3.10"
+dependencies = [
+    "cosl",
+    "Jinja2",
+    "lightkube",
+    "lightkube-models",
+    "ops>=2.2.0",
+    "pydantic~=2.5.3",
+    "SQLAlchemy",
+    "tenacity~=9.1.4",
+    "jsonschema",
+    "cryptography",
+    "psycopg[binary]",
+]
 
-dynamic = ["version"]
+[dependency-groups]
+fmt = [
+    "isort",
+    "ruff",
+]
+lint = [
+    "codespell",
+    "isort",
+    "ruff",
+    "tomli",
+]
+unit = [
+    "coverage[toml]",
+    "cryptography",
+    "ipdb",
+    "jsonschema",
+    "ops[testing]",
+    "pytest",
+    "pytest-mock",
+]
+integration = [
+    "cryptography",
+    "jubilant",
+    "psycopg[binary]",
+    "pytest",
+    "python-ldap",
+    "tenacity",
+]
+dev = [
+    "pre-commit",
+    "mypy",
+    "types-PyYAML",
+    "types-requests",
+    { include-group = "fmt" },
+    { include-group = "lint" },
+    { include-group = "unit" },
+    { include-group = "integration" },
+]
+
+[tool.uv]
+package = false
 
 # Testing tools configuration
 [tool.coverage.run]
