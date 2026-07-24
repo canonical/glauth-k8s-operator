@@ -14,7 +14,7 @@ dependencies = [
     "lightkube",
     "lightkube-models",
     "ops>=2.2.0",
-    "pydantic~=2.5.3",
+    "pydantic~=2.13.4",
     "SQLAlchemy",
     "tenacity~=9.1.4",
     "jsonschema",
