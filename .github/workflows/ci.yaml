@@ -25,3 +25,5 @@ jobs:
       use-charmcraftcache: false
       node-size: large
       tox-integration-test-targets: "build-prerequisites,integration"
+      base: "26.04"
+      k8s-channel: "1.35-strict/stable"
