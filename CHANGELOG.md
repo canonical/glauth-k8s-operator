@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.4.0](https://github.com/canonical/glauth-k8s-operator/compare/v1.3.3...v1.4.0) (2026-07-31)
+
+
+### Features
+
+* support 26.04 base ([ea11ecc](https://github.com/canonical/glauth-k8s-operator/commit/ea11ecc7509c3d5dc7e646a313cdc06c119ca2ee))
+* support 26.04 base ([#299](https://github.com/canonical/glauth-k8s-operator/issues/299)) ([3b7d056](https://github.com/canonical/glauth-k8s-operator/commit/3b7d056095194677651bb239dd1dec6bf1fcc406))
+
+
+### Bug Fixes
+
+* **deps:** update dependency pydantic to ~=2.13.4 ([6b8dfa6](https://github.com/canonical/glauth-k8s-operator/commit/6b8dfa664dd9fa25b04f3724894c1398db995efa))
+* **deps:** update dependency pydantic to ~=2.13.4 ([#295](https://github.com/canonical/glauth-k8s-operator/issues/295)) ([a4e34aa](https://github.com/canonical/glauth-k8s-operator/commit/a4e34aaaf6d05fe43531afc372745d3255a79b0d))
+
 ## [1.3.3](https://github.com/canonical/glauth-k8s-operator/compare/v1.3.2...v1.3.3) (2026-07-08)
 
 
