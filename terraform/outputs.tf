@@ -9,7 +9,7 @@ output "app_name" {
 output "requires" {
   description = "The Juju integrations that the charm requires"
   value = {
-    pg-database   = "pb-database"
+    pg-database   = "pg-database"
     ingress       = "ingress"
     ldaps-ingress = "ldaps-ingress"
     certificates  = "certificates"
