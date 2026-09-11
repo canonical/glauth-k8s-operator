@@ -3,6 +3,10 @@
 
 """# Juju Charm Library for the `ldap` Juju Interface.
 
+> **DEPRECATED**
+> This charm library is deprecated in favor of the `charmlibs-interfaces-ldap` PyPI package.
+> Please install `charmlibs-interfaces-ldap` and import from `charmlibs.interfaces.ldap`.
+
 This juju charm library contains the Provider and Requirer classes for handling
 the `ldap` interface.
 
@@ -147,7 +151,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 13
+LIBPATCH = 14
 
 PYDEPS = ["pydantic"]
 
