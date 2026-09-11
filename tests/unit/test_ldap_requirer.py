@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 import yaml
-from charms.glauth_k8s.v0.ldap import LdapReadyEvent, LdapRequirer, LdapUnavailableEvent
+from charmlibs.interfaces.ldap import LdapReadyEvent, LdapRequirer, LdapUnavailableEvent
 from ops import CharmBase, EventBase
 from ops.testing import Context, Model, Relation, Secret, State
 from unit.conftest import create_state

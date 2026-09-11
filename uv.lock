@@ -233,6 +233,19 @@ wheels = [
 ]
 
 [[package]]
+name = "charmlibs-interfaces-ldap"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "ops" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/12/d8/0c6488839e95ca112d619160f9bf24baf2408f6e847acfae4a88f58daf92/charmlibs_interfaces_ldap-1.1.0.tar.gz", hash = "sha256:07b519a4740d4009c664caefd873f4363e987ad2d48287a0537db3b9a00c126f", size = 31185, upload-time = "2026-09-11T09:38:48.537Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/44/e7/4e88c9254b6fa29f13089d54e1b3044054e2da231eda700cbd907f923636/charmlibs_interfaces_ldap-1.1.0-py3-none-any.whl", hash = "sha256:aa7e5f590ef95d78eb8f7abeb4d1a186da8a9a92b3700fe52909a6d3b97a0fe1", size = 7458, upload-time = "2026-09-11T09:38:47.435Z" },
+]
+
+[[package]]
 name = "codespell"
 version = "2.4.3"
 source = { registry = "https://pypi.org/simple" }
@@ -519,6 +532,7 @@ name = "glauth-k8s-operator"
 version = "0.0.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "charmlibs-interfaces-ldap" },
     { name = "cosl" },
     { name = "cryptography" },
     { name = "jinja2" },
@@ -584,6 +598,7 @@ unit = [
 
 [package.metadata]
 requires-dist = [
+    { name = "charmlibs-interfaces-ldap", specifier = "~=1.1.0" },
     { name = "cosl" },
     { name = "cryptography" },
     { name = "jinja2" },
