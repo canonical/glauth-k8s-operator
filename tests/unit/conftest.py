@@ -5,7 +5,7 @@ from dataclasses import replace
 from unittest.mock import MagicMock
 
 import pytest
-from charms.glauth_k8s.v0.ldap import LdapProviderData
+from charmlibs.interfaces.ldap import LdapProviderData
 from charms.tls_certificates_interface.v4.tls_certificates import (
     Certificate,
     CertificateSigningRequest,

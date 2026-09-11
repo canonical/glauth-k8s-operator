@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Mapping, Optional
 
-from charms.glauth_k8s.v0.ldap import LdapProviderData, LdapRequirer
+from charmlibs.interfaces.ldap import LdapProviderData, LdapRequirer
 from jinja2 import Template
 from ops.pebble import Layer
 
