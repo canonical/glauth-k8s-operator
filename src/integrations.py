@@ -10,10 +10,10 @@ from dataclasses import dataclass
 from secrets import token_hex
 from typing import List, Optional
 
+from charmlibs.interfaces.ldap import LdapProviderBaseData, LdapProviderData
 from charms.certificate_transfer_interface.v0.certificate_transfer import (
     CertificateTransferProvides,
 )
-from charms.glauth_k8s.v0.ldap import LdapProviderBaseData, LdapProviderData
 from charms.glauth_utils.v0.glauth_auxiliary import AuxiliaryData
 from charms.tls_certificates_interface.v4.tls_certificates import (
     CertificateRequestAttributes,
