@@ -9,16 +9,16 @@
 import logging
 from typing import Any, Optional
 
-from charms.data_platform_libs.v0.data_interfaces import (
-    DatabaseCreatedEvent,
-    DatabaseEndpointsChangedEvent,
-    DatabaseRequires,
-)
-from charms.glauth_k8s.v0.ldap import (
+from charmlibs.interfaces.ldap import (
     LdapProvider,
     LdapReadyEvent,
     LdapRequestedEvent,
     LdapRequirer,
+)
+from charms.data_platform_libs.v0.data_interfaces import (
+    DatabaseCreatedEvent,
+    DatabaseEndpointsChangedEvent,
+    DatabaseRequires,
 )
 from charms.glauth_utils.v0.glauth_auxiliary import AuxiliaryProvider, AuxiliaryRequestedEvent
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
