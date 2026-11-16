@@ -41,6 +41,7 @@ def test_build_and_deploy(juju: jubilant.Juju, local_charm: Path) -> None:
         DB_APP,
         channel="14/stable",
         trust=True,
+        force=True,
     )
     juju.deploy(
         CERTIFICATE_PROVIDER_APP,
