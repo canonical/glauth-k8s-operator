@@ -362,7 +362,7 @@ class GlauthClientTestSuite:
         action = juju.run(
             f"{ldap_client_app_name}/0",
             "rpc",
-            params={"method": "starttls_operation", "cn": "hackers"},
+            params={"method": "starttls_operation", "kwargs": json.dumps({"cn": "hackers"})},
         )
         res = action.results
 
@@ -382,7 +382,7 @@ class GlauthClientTestSuite:
         action = juju.run(
             f"{ldap_client_app_name}/0",
             "rpc",
-            params={"method": "ldaps_operation", "cn": "hackers"},
+            params={"method": "ldaps_operation", "kwargs": json.dumps({"cn": "hackers"})},
         )
         res = action.results
 
